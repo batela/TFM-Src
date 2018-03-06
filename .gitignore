@@ -1,0 +1,7 @@
+*.log
+*/_*
+*/.*
+
+## Seccion directorios
+BackUp/*
+Labs/*.pyc
