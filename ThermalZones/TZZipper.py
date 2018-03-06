@@ -23,7 +23,7 @@ class TZZipper (object):
 
     def __init__(self, params):
         '''
-        Constructor
+        Constructor esto es un comenario
         '''
         self.id     = params
         self.data   = None
