@@ -28,7 +28,7 @@ class TZZipper (object):
         self.id     = params
         self.data   = None
         self.logger = logging.getLogger("tzzipper")    
-        self.roomNames =['R1','R2','R3','R4','R5','R6','R7']
+        self.roomNames =['R0','R1','R2','R3','R4','R5','R6','R7']
  
     def clean (self):        
         self.data       = None
@@ -44,7 +44,7 @@ class TZZipper (object):
             rowData = np.append(rowData,rowItem[:96*17])
         
         self.logger.info ("fin de inicializacion..")
-        return np.resize (rowData,(1824,96))
+        return np.resize (rowData,(len(rowData)//96,96))
     
     def clusterizeKmeans (self,groups,X):
         self.logger.info ("Inicio clusterizaccion..")

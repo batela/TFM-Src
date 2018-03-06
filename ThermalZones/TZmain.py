@@ -18,11 +18,10 @@ import numpy
 import imp
 import TZZipper
 
-def loadFileData ():
+def loadFileData (filepath):
                 
         #self.logger.info ("Loading data from file....")         
         
-        filepath='/home/deba/Prj/FHP/Documents/'
         #filename = 'PumpGround_allData.csv'
         #data = pd.read_csv(filepath+filename, sep=';', decimal = ',',thousands = '.', usecols=['DATE', 'Timpout36', 'Tretout37','Timpin22','Tretin23','Econsump', 'ONOFF'], parse_dates=['DATE'])
         
@@ -32,10 +31,9 @@ def loadFileData ():
         return data
     
 
-def saveFileData (data):
+def saveFileData (filepath,data):
                 
         #self.logger.info ("Loading data from file....")                 
-        filepath='/home/deba/Prj/FHP/Documents/'        
         filename = 'pydata.csv'        
         numpy.savetxt(filepath+filename, data, fmt='%.4f', delimiter=';')
         
@@ -44,6 +42,7 @@ def saveFileData (data):
 
 if __name__ == "__main__":
     
+    filepath='/home/batela/Prj/Master/Software/TFM-Src/Repo/'
 #    imp.reload(IHPPlanner)
     imp.reload(logging)
     
@@ -64,8 +63,8 @@ if __name__ == "__main__":
     logger.info ("Starting process..")
     
     hpp = TZZipper.TZZipper("mytest")
-    data = hpp.initialize(loadFileData ())
-    saveFileData (data)
+    data = hpp.initialize(loadFileData (filepath))
+    saveFileData (filepath,data)
     #hpp.clusterize (4,data)
     hpp.clusterizeHClust (data)
     logger.debug("Process ended...")
