@@ -28,8 +28,8 @@ class TZZipper (object):
         self.id     = params
         self.data   = None
         self.logger = logging.getLogger("tzzipper")    
-        self.roomNames =['R0','R1','R2','R3','R4','R5','R6','R7']
- 
+ #       self.roomNames =['R0T','R1','R2','R3','R4','R5','R6','R7T']
+        self.roomNames =['T0','T1','T3','T4','T5','T6','T7','T8','T9','T10','T11']    
     def clean (self):        
         self.data       = None
         
@@ -59,10 +59,11 @@ class TZZipper (object):
         self.logger.info ("Inicio clusterizaccion por hierarchical..")
         Z = linkage(X, 'ward')
         c, coph_dists = cophenet(Z, pdist(X))
-        k=6
+        k=3
         cl = fcluster(Z, k, criterion='maxclust')
         
         self.plotter(Z)
+        return cl
     
     
     def plotter (self,Z):
