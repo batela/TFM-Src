@@ -28,11 +28,12 @@ def loadFileData (filepath):
         #data = pd.read_csv(filepath+filename, sep=';', decimal = ',',thousands = '.', usecols=['DATE', 'Timpout36', 'Tretout37','Timpin22','Tretin23','Econsump', 'ONOFF'], parse_dates=['DATE'])
         
         
-        filename = 'FHP-20141008.csv'        
+        filename = 'FHP-20141008.csv'                
         filename = 'datosvivienda_test.csv'
-        filename = 'ed700.csv'
+        filename = 'ed700.csv'        
         #usecols = ['Fecha','geotech_raw_36_Temperatura_T1','geotech_raw_37_Temperatura_T2','geotech_raw_256_EnergiaActiva','geotech_raw_2_T_Aire_Exterior','geotech_raw_22_EP_Impulsion_T','geotech_raw_23_EP_Retorno_T','geotech_raw_24_Caudal']
-        data = pd.read_csv(filepath+filename, sep=';', decimal = '.')
+        fulldata = pd.read_csv(filepath+filename, sep=';', decimal = '.')
+        data = fulldata[(pd.to_datetime(fulldata['Time']).dt.weekday < 5)]
         return data
     
 
