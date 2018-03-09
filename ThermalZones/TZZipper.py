@@ -30,16 +30,27 @@ class TZZipper (object):
         self.logger = logging.getLogger("tzzipper")    
         #self.roomNames =['R0T','R1','R2','R3','R4','R5','R6','R7T']
         self.roomNames =['T0','T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11']    
-        self.k=7
-        self.period = 10
-        #self.days= 17
-        self.days= 0
+        self.k=None
+        self.period = None
+        self.days= None
+        
+        
     def clean (self):        
         self.data       = None
+        self.k=None
+        self.period = None
+        self.days= None
         
-    def initialize (self,data):
+        
+    def initialize (self,data,k,period,days):
         
         self.logger.info ("Inicializamos los valores..")
+        
+        self.k=7
+        self.period = period
+        #self.days= 17
+        self.days= days
+        
         self.data       = data
         dayItems = (24*60//self.period)        
         rowData = []
@@ -63,13 +74,28 @@ class TZZipper (object):
         #ll = kmeans.labels_
    
         self.logger.info ("Fin cluseterizacion")
+#   BTL estorr revisar        
+    def elbowMethod  (self,Z):
+        last = Z[-10:, 2]
+        last_rev = last[::-1]
+        idxs = np.arange(1, len(last) + 1)
+        plt.plot(idxs, last_rev)
+        
+        acceleration = np.diff(last, 2)  # 2nd derivative of the distances
+        acceleration_rev = acceleration[::-1]
+        plt.plot(idxs[:-2] + 1, acceleration_rev)
+        plt.show()
+        k = acceleration_rev.argmax() + 2  # if idx 0 is the max of this we want 2 clusters
+        self.logger.info ("Cluster calculation" + str(k))
         
         
     def clusterizeHClust (self,X):
         self.logger.info ("Inicio clusterizaccion por hierarchical..")
         Z = linkage(X, 'ward')
-        c, coph_dists = cophenet(Z, pdist(X))
         
+        self.elbowMethod (Z)
+        
+        #c, coph_dists = cophenet(Z, pdist(X))
         cl = fcluster(Z, self.k, criterion='maxclust')
         
         self.plotter(Z)

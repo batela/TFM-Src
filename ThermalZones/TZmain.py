@@ -19,42 +19,48 @@ import imp
 import TZZipper
 from matplotlib import pyplot as plt2
 
+## Esto no debería estar aqui.... pero por simplificar..
+period = 10
+days=0
+k = 4
 
 def loadFileData (filepath):
                 
-        #self.logger.info ("Loading data from file....")         
-        
-        #filename = 'PumpGround_allData.csv'
-        #data = pd.read_csv(filepath+filename, sep=';', decimal = ',',thousands = '.', usecols=['DATE', 'Timpout36', 'Tretout37','Timpin22','Tretin23','Econsump', 'ONOFF'], parse_dates=['DATE'])
-        
-        
+        logger.info ("Loading data from file....")         
+
         filename = 'FHP-20141008.csv'                
         filename = 'datosvivienda_test.csv'
         filename = 'ed700.csv'        
-        #usecols = ['Fecha','geotech_raw_36_Temperatura_T1','geotech_raw_37_Temperatura_T2','geotech_raw_256_EnergiaActiva','geotech_raw_2_T_Aire_Exterior','geotech_raw_22_EP_Impulsion_T','geotech_raw_23_EP_Retorno_T','geotech_raw_24_Caudal']
+                
         fulldata = pd.read_csv(filepath+filename, sep=';', decimal = '.')
+        
+        logger.debug ("Looking for proper daytypes..")         
         data = fulldata[(pd.to_datetime(fulldata['Time']).dt.weekday < 5)]
+
+        logger.info ("Loaded data from file: " + filepath+filename)   
         return data
     
 
 def saveFileData (filepath,data):
                 
-        #self.logger.info ("Loading data from file....")            di =     
+        logger.info ("Saving data to file....")
         filename = 'pydata.csv'        
         numpy.savetxt(filepath+filename, data, fmt='%.4f', delimiter=';')
         
         return data
 
 def calculaStadist(data,cl):
-        dias = 579
+        
         rooms = 12
+        dias = len(cl)//(rooms)
+        
         idx = -1
         di = None
         for ro in list(range (0,rooms)):
             idx +=1
             l = list(cl[dias*idx:dias*(idx+1)])
             for it in list(range (1,numpy.amax(cl)+1)):
-                di = dict((it,l.count(it)) for it in set(l))
+                di = dict((it,(l.count(it)*100//dias)) for it in set(l))
             logger.info ("Found data for room " + str (ro) +" : "+ str(di))
                 
 def auxPlotter(data,cl):
@@ -93,7 +99,6 @@ if __name__ == "__main__":
     imp.reload(logging)
     
     
-    
     FORMAT = '%(levelname)s - %(asctime)s - %(filename)s::%(funcName)s - %(message)s'
     #logging.basicConfig(level=logging.DEBUG, format = '%(levelname)s - %(asctime)s - %(filename)s:%(lineno)s - %(message)s')
     logging.basicConfig(level=logging.DEBUG, format = FORMAT)
@@ -110,8 +115,9 @@ if __name__ == "__main__":
     
     logger.info ("Starting process..")
     
+    
     hpp = TZZipper.TZZipper("mytest")
-    data = hpp.initialize(loadFileData (filepath))
+    data = hpp.initialize(loadFileData (filepath),k,period,days) # Para RV 3,15,17 Para 700 7,10,0
             
     saveFileData (filepath,data)
     #hpp.clusterize (4,data)
