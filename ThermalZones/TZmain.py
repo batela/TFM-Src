@@ -17,6 +17,8 @@ import pandas as pd
 import numpy
 import imp
 import TZZipper
+import TCPredictor
+
 from matplotlib import pyplot as plt2
 from scipy.spatial.distance import pdist, squareform
 
@@ -30,8 +32,9 @@ k = 4       ## Numero de clusteres
 rooms = 8   ## Numero de zonas/estancias
 roomNames =['R0T','R1','R2','R3','R4','R5','R6','R7T']
 #roomNames =['T0','T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11']    
-consNames =['Control','R1','R2','R3','R4','R5','R6','R7T']
-        
+
+coNames =['Control','Php.1','Pbld']        
+
 ## BTL Variables de salida
 distances   = None ## Matrix de distancias por dia
 clusteres   = None ## Clusters encontrados 
@@ -54,6 +57,25 @@ def loadFileData (filepath,rooms):
         logger.info ("Loaded data from file: " + filepath+filename)   
         return data
     
+
+def loadFileDataWithTime (filepath):
+                
+        logger.info ("Loading data from file....")         
+
+#        filename = 'ed700.csv'
+#        filename = 'FHP-20141008.csv'                
+        filename = 'datosvivienda_test.csv'
+                
+        dateparse = lambda dates: pd.datetime.strptime(dates, '%d/%m/%Y %H:%M:%S')
+        fulldata = pd.read_csv(filepath+filename, sep=',', decimal = '.', index_col='Control',date_parser=dateparse ,usecols=coNames)
+        
+        logger.debug ("Looking for proper daytypes..")         
+        #data = fulldata[(pd.to_datetime(fulldata.index).dt.weekday < 5)]
+
+        logger.info ("Loaded data from file: " + filepath+filename)   
+        return fulldata
+
+
 
 def saveFileData (filepath,data):
                 
@@ -119,7 +141,36 @@ def auxPlotter(data,cl):
                 plt2.close()
                 idxRo+=1
 
+def doMultizone ():
+        ## BTL creamos la clase que utilizaremos    
+        hpp = TZZipper.TZZipper("mytest",roomNames)
+        
+    ## BTL Inicializacion y creacion de estructura de datos que utilizaremos.
+    ## "data" es una matriz en el que se ordenan por cada zona los datos corres-
+    ## pondientes a sus "dias" de forma consecutiva. Es decir las primeras n filas 
+    ## pertenecen a los n "dias" de la primera zona
+        data = hpp.initialize(loadFileData (filepath),k,period,days) # Para RV 3,15,17 Para 700 7,10,0
+    
+    ## BTL funcion auxiliar            
+        saveFileData (filepath,data)
+    ## BTL funcion que calcula la distancia por dia para cada una de las zonas
+        groupByDays (data)
+        
+    #   hpp.clusterize (4,data)
+    
+    ## BTL realiza la clusterizacion , plotea y calculo de estadisticas...
+        clusteres = hpp.clusterizeHClust (data)
+        auxPlotter(data,clusteres)    
+        calculaStadist(data,clusteres)
 
+
+def doForecasting ():
+        hpf = TCPredictor.TCPredictor("mytest",coNames)
+        data = hpf.initialize(loadFileDataWithTime (filepath),period,days)
+        hpf.TCPloter (data)
+
+
+    
 if __name__ == "__main__":
     
     filepath='../Repo/'
@@ -143,26 +194,9 @@ if __name__ == "__main__":
     
     logger.info ("Starting process..")
     
-## BTL creamos la clase que utilizaremos    
-    hpp = TZZipper.TZZipper("mytest",roomNames)
-    
-## BTL Inicializacion y creacion de estructura de datos que utilizaremos.
-## "data" es una matriz en el que se ordenan por cada zona los datos corres-
-## pondientes a sus "dias" de forma consecutiva. Es decir las primeras n filas 
-## pertenecen a los n "dias" de la primera zona
-    data = hpp.initialize(loadFileData (filepath,roomNames),k,period,days) # Para RV 3,15,17 Para 700 7,10,0
 
-## BTL funcion auxiliar            
-    saveFileData (filepath,data)
-## BTL funcion que calcula la distancia por dia para cada una de las zonas
-    groupByDays (data)
+#    doMultizone();
+    doForecasting();
     
-#   hpp.clusterize (4,data)
-
-## BTL realiza la clusterizacion , plotea y calculo de estadisticas...
-    clusteres = hpp.clusterizeHClust (data)
-    auxPlotter(data,clusteres)    
-    calculaStadist(data,clusteres)
-        
     logger.debug("Process ended...")
     
