@@ -21,6 +21,7 @@ from matplotlib import pyplot as plt2
 from scipy.spatial.distance import pdist, squareform
 
 
+
 ## Esto no debería estar aqui.... pero por simplificar..
 ## BTL Variables de entrada
 period = 15 ## Periodo entre datos en minutos
@@ -29,6 +30,7 @@ k = 4       ## Numero de clusteres
 rooms = 8   ## Numero de zonas/estancias
 roomNames =['R0T','R1','R2','R3','R4','R5','R6','R7T']
 #roomNames =['T0','T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11']    
+consNames =['Control','R1','R2','R3','R4','R5','R6','R7T']
         
 ## BTL Variables de salida
 distances   = None ## Matrix de distancias por dia
@@ -36,7 +38,7 @@ clusteres   = None ## Clusters encontrados
 distribut   = None ## Distribcion de cada zona en clusteres
 
 
-def loadFileData (filepath):
+def loadFileData (filepath,rooms):
                 
         logger.info ("Loading data from file....")         
 
@@ -44,7 +46,7 @@ def loadFileData (filepath):
 #        filename = 'FHP-20141008.csv'                
         filename = 'datosvivienda_test.csv'
                 
-        fulldata = pd.read_csv(filepath+filename, sep=',', decimal = '.')
+        fulldata = pd.read_csv(filepath+filename, sep=',', decimal = '.',usecols=rooms)
         
         logger.debug ("Looking for proper daytypes..")         
         data = fulldata[(pd.to_datetime(fulldata['Time']).dt.weekday < 5)]
@@ -148,7 +150,7 @@ if __name__ == "__main__":
 ## "data" es una matriz en el que se ordenan por cada zona los datos corres-
 ## pondientes a sus "dias" de forma consecutiva. Es decir las primeras n filas 
 ## pertenecen a los n "dias" de la primera zona
-    data = hpp.initialize(loadFileData (filepath),k,period,days) # Para RV 3,15,17 Para 700 7,10,0
+    data = hpp.initialize(loadFileData (filepath,roomNames),k,period,days) # Para RV 3,15,17 Para 700 7,10,0
 
 ## BTL funcion auxiliar            
     saveFileData (filepath,data)
