@@ -3,5 +3,6 @@
 */.*
 
 ## Seccion directorios
+Images/*.*
 BackUp/*
 Labs/*.pyc

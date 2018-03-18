@@ -62,6 +62,7 @@ class TZZipper (object):
         
         return np.resize (rowData,(len(rowData)//dayItems,dayItems))
     
+    
     def clusterizeKmeans (self,groups,X):
         self.logger.info ("Inicio clusterizaccion..")
     

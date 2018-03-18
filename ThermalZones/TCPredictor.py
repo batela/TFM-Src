@@ -40,9 +40,14 @@ class TCPredictor (object):
         self.logger.info ("Inicializamos los valores..")
         
         rowData = []
+        dayData = []
+        dayDataInt = []
         dayItems = (24*60//period)   
         self.data       = data
         self.days       = days
+        
+#        np.bincount(b, weights=a)
+        ids = np.repeat(np.arange(24), 4)
         for co in self.consumptionNames:
             rowItem = self.data[[co]]
             if (self.days > 0):
@@ -53,8 +58,17 @@ class TCPredictor (object):
         
         
         self.logger.info ("fin de inicializacion..")
+        return np.resize (rowData,(len(rowData)//dayItems,dayItems))
         
-        return rowData
+    
+    def integrate (self,data,period,days):
+        
+        self.logger.info ("Inicializamos los valores..")
+         
+        for i in np.arange (data.shape[0]):             
+            dayDataInt = np.append(dayDataInt,np.bincount(ids, weights=dayData[i]))
+            
+        return np.resize (dayDataInt,(len(dayDataInt)//24,24))
     
     def TCPloter (self, data):
         
