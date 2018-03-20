@@ -34,7 +34,7 @@ roomNames =['R0T','R1','R2','R3','R4','R5','R6','R7T']
 #roomNames =['T0','T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11']    
 
 
-coNames =['Toutdoor','Tindoor','Fbld','Qbld']        
+coNames =['Toutdoor','Tindoor','Fbld','Pbld']        
 
 ## BTL Variables de salida
 distances   = None ## Matrix de distancias por dia
@@ -48,7 +48,7 @@ def loadFileData (filepath,rooms):
 
 #        filename = 'ed700.csv'
 #        filename = 'FHP-20141008.csv'                
-        filename = 'datosvivienda_test.csv'
+        filename = 'datosvivienda_testw.csv'
                 
         fulldata = pd.read_csv(filepath+filename, sep=',', decimal = '.')
         
@@ -69,7 +69,7 @@ def loadFileDataWithTime (filepath):
                 
         dateparse = lambda dates: pd.datetime.strptime(dates, '%d/%m/%Y %H:%M:%S')
         fulldata = pd.read_csv(filepath+filename, sep=',', decimal = '.', index_col='Control',date_parser=dateparse ,usecols=coNames)
-        
+    
         logger.debug ("Looking for proper daytypes..")         
         #data = fulldata[(pd.to_datetime(fulldata.index).dt.weekday < 5)]
 
@@ -167,7 +167,9 @@ def doMultizone ():
 
 def doForecasting ():
         hpf = TCPredictor.TCPredictor("mytest",coNames)
-        data = hpf.initialize(loadFileData(filepath,coNames),period,15)
+        data = hpf.initialize(loadFileData(filepath,coNames),period,30)
+        X,y= hpf.integrate(data,4)
+        hpf.doForecasting( X,y)
         hpf.TCPloter (data)
 
 
