@@ -13,12 +13,15 @@ import pandas as pd
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.neural_network import MLPClassifier
+from sklearn.neural_network import MLPClassifier,MLPRegressor
 from sklearn.metrics import classification_report,confusion_matrix
-from scipy.signal import savgol_filter
+
 from sklearn.cross_validation import cross_val_score
 
-
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn import svm
+ 
 from matplotlib import pyplot as plt
 #from sklearn.cluster import KMeans
 #from scipy.cluster.hierarchy import cophenet
@@ -79,16 +82,21 @@ class TCPredictor (object):
         self.logger.info ("Finalizamos integracion..")
 #        readyData = np.resize (dayDataInt,(len(dayDataInt)//(24//periodInt),(24//periodInt)))
         readyData = np.resize (dayDataInt,(4,len(dayDataInt)//(4)))
-        tmp = readyData[3]
-        tmp[tmp<500] = 0
-        tmp[np.where ((tmp>=500) & (tmp<1000))] = 1
-        tmp[np.where ((tmp>=1000) & (tmp<1500))] = 2
-        tmp[np.where ((tmp>=1500) & (tmp<2000))] = 3
-        tmp[np.where ((tmp>=2000) & (tmp<2500))] = 4
-        tmp[np.where (tmp>=2500)] = 5
-        self.TCPloter (readyData[0], tmp)
-        return readyData[0], tmp
+        return readyData[0], readyData[3]
     
+    def labelize (self,data,n, bins, patches):
+        
+        tmp = data
+        tmp[tmp< (434 + 195//2)] = 0
+        tmp[np.where ((tmp>=(434 + 195//2)) & (tmp<(1019 + 195//2)))] = 1
+        tmp[np.where ((tmp>=(1019 + 195//2)) & (tmp<(1214 + 195//2)))] = 2
+        tmp[np.where ((tmp>=(1214 + 195//2)) & (tmp<(1409 + 195//2)))] = 3
+#        tmp[np.where ((tmp>=(1409 + 195//2)) & (tmp<(1214 + 195//2)))] = 4
+        tmp[np.where (tmp>=(1409 + 195//2))] = 4
+        
+        return tmp
+        
+        
     def doForecasting  (self,  X,Y):
         y = np.array(Y)
         
@@ -98,7 +106,28 @@ class TCPredictor (object):
         self.logger.info ("Testing with cross-validation")
         
         mlp = MLPClassifier(hidden_layer_sizes=(30,30,30))
-        self.logger.info((cross_val_score(mlp, X.reshape(-1,1).astype(int), ysm.repeat(3).reshape(-1,).astype(int), scoring='accuracy', cv = 3)))
+        self.logger.info((cross_val_score(mlp, X.reshape(-1,1).astype(int), ysm.repeat(3).reshape(-1,).astype(int), scoring='accuracy', cv = 5)))
+        
+        
+        rf_class = RandomForestClassifier(n_estimators=10)
+        log_class = LogisticRegression()
+        svm_class = svm.SVC()
+        data_input =  X.reshape(-1,1).astype(int)
+        data_output = ysm.repeat(3).reshape(-1,)
+        
+        print(cross_val_score(rf_class, data_input, data_output, scoring='accuracy', cv = 5))
+        accuracy = cross_val_score(rf_class, data_input, data_output, scoring='accuracy', cv = 5).mean() * 100
+        print("Accuracy of Random Forests is: " , accuracy)
+ 
+        print("\n\nSVM:")
+        print(cross_val_score(svm_class, data_input, data_output, scoring='accuracy', cv = 5))
+        accuracy = cross_val_score(svm_class, data_input, data_output, scoring='accuracy', cv = 5).mean() * 100
+        print("Accuracy of SVM is: " , accuracy)
+ 
+        print("\n\nLog:")
+        print(cross_val_score(log_class, data_input, data_output, scoring='accuracy', cv = 5))
+        accuracy = cross_val_score(log_class, data_input, data_output, scoring='accuracy', cv = 5).mean() * 100
+        print("Accuracy of SVM is: " , accuracy)
         
 #        scaler = StandardScaler()
 #        Fit only to the training data
@@ -120,8 +149,7 @@ class TCPredictor (object):
     def TCPloter (self,x,y):
         
         plt.close()
-        yhat = savgol_filter(y, 5, 3) # window size 51, polynomial order 3
-        
+      
         ids = np.repeat(np.arange(180//3), 3) 
         ysm= np.bincount(ids, y)//np.bincount(ids)
         
