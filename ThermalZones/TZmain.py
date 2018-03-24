@@ -53,8 +53,8 @@ def loadFileData (filepath,rooms):
         fulldata = pd.read_csv(filepath+filename, sep=',', decimal = '.')
         
         logger.debug ("Looking for proper daytypes..")         
-        data = fulldata[(pd.to_datetime(fulldata['Time']).dt.weekday < 5)]
-
+#        data = fulldata[(pd.to_datetime(fulldata['Time']).dt.weekday < 5)]
+        data = fulldata
         logger.info ("Loaded data from file: " + filepath+filename)   
         return data
     
