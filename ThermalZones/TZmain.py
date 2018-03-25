@@ -55,8 +55,8 @@ def loadFileData (filepath,rooms):
         fulldata = pd.read_csv(filepath+filename, sep=',', decimal = '.')
         
         logger.debug ("Looking for proper daytypes..")         
-        data = fulldata[(pd.to_datetime(fulldata['Time']).dt.weekday < 5)]
-
+#        data = fulldata[(pd.to_datetime(fulldata['Time']).dt.weekday < 5)]
+        data = fulldata
         logger.info ("Loaded data from file: " + filepath+filename)   
         return data
     
@@ -144,6 +144,17 @@ def auxPlotter(data,cl):
                 plt2.close()
                 idxRo+=1
 
+def auxPlotterHisto(data):
+                
+# the histogram of the data
+     plt2.close()
+     n, bins, patches = plt2.hist(data, 10, facecolor='green', alpha=0.75)
+     plt2.show()
+     return n, bins, patches 
+
+
+
+
 def doMultizone ():
         ## BTL creamos la clase que utilizaremos    
         hpp = TZZipper.TZZipper("mytest",roomNames)
@@ -171,8 +182,12 @@ def doForecasting ():
         hpf = TCPredictor.TCPredictor("mytest",coNames)
         data = hpf.initialize(loadFileData(filepath,coNames),period,30)
         X,y= hpf.integrate(data,4)
-        hpf.doForecasting( X,y)
-        hpf.TCPloter (data)
+        n, bins, patches = auxPlotterHisto(y)
+        yl = hpf.labelize(y,n, bins, patches)
+        hpf.doForecasting( X,yl)
+        hpf.TCPloter (X, yl)
+        
+       # hpf.TCPloter (data)
 
 
 def doSeriesForecasting ():
