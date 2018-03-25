@@ -80,12 +80,12 @@ class TCPredictor (object):
 #        readyData = np.resize (dayDataInt,(len(dayDataInt)//(24//periodInt),(24//periodInt)))
         readyData = np.resize (dayDataInt,(4,len(dayDataInt)//(4)))
         tmp = readyData[3]
-        tmp[tmp<500] = 0
-        tmp[np.where ((tmp>=500) & (tmp<1000))] = 1
-        tmp[np.where ((tmp>=1000) & (tmp<1500))] = 2
-        tmp[np.where ((tmp>=1500) & (tmp<2000))] = 3
-        tmp[np.where ((tmp>=2000) & (tmp<2500))] = 4
-        tmp[np.where (tmp>=2500)] = 5
+        tmp[tmp<300] = 0
+        tmp[np.where ((tmp>=300) & (tmp<600))] = 1
+        tmp[np.where ((tmp>=600) & (tmp<900))] = 2
+        tmp[np.where ((tmp>=900) & (tmp<1200))] = 3
+        tmp[np.where ((tmp>=1200) & (tmp<1500))] = 4
+        tmp[np.where (tmp>=1500)] = 5
         self.TCPloter (readyData[0], tmp)
         return readyData[0], tmp
     
@@ -94,11 +94,11 @@ class TCPredictor (object):
         
         ids = np.repeat(np.arange(180//3), 3) 
         ysm= np.bincount(ids, y)//np.bincount(ids)
-        
+        Xms = np.bincount(ids, X)//np.bincount(ids)
         self.logger.info ("Testing with cross-validation")
         
         mlp = MLPClassifier(hidden_layer_sizes=(30,30,30))
-        self.logger.info((cross_val_score(mlp, X.reshape(-1,1).astype(int), ysm.repeat(3).reshape(-1,).astype(int), scoring='accuracy', cv = 3)))
+        self.logger.info((cross_val_score(mlp, Xms.repeat(3).reshape(-1,1).astype(int), ysm.repeat(3).reshape(-1,).astype(int), scoring='accuracy', cv = 5)))
         
 #        scaler = StandardScaler()
 #        Fit only to the training data
@@ -109,7 +109,7 @@ class TCPredictor (object):
         self.logger.info ("Testing with split test set..")
         
         mlp = MLPClassifier(hidden_layer_sizes=(30,30,30))
-        X_train, X_test, y_train, y_test = train_test_split(X.astype(int), ysm.repeat(3).astype(int))  
+        X_train, X_test, y_train, y_test = train_test_split(Xms.repeat(3).astype(int), ysm.repeat(3).astype(int))  
         mlp.fit(X_train.reshape(-1,1),y_train.reshape(-1,1))
         predictions = mlp.predict(X_test.reshape(-1,1))
         self.logger.info((confusion_matrix(y_test,predictions)))    
@@ -120,13 +120,14 @@ class TCPredictor (object):
     def TCPloter (self,x,y):
         
         plt.close()
-        yhat = savgol_filter(y, 5, 3) # window size 51, polynomial order 3
-        
         ids = np.repeat(np.arange(180//3), 3) 
+        
+        Xsm = np.bincount(ids, x)//np.bincount(ids)
         ysm= np.bincount(ids, y)//np.bincount(ids)
         
         
         plt.plot(x)
         plt.plot(y)
-        plt.plot(ysm.repeat(3))     
+        plt.plot(ysm.repeat(3)) 
+        plt.plot(Xsm.repeat(3)) 
         plt.show()

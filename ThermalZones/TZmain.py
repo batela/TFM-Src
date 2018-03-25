@@ -18,6 +18,7 @@ import numpy
 import imp
 import TZZipper
 import TCPredictor
+import TCSeries
 
 from matplotlib import pyplot as plt2
 from scipy.spatial.distance import pdist, squareform
@@ -35,6 +36,7 @@ roomNames =['R0T','R1','R2','R3','R4','R5','R6','R7T']
 
 
 coNames =['Toutdoor','Tindoor','Fbld','Pbld']        
+coSeriesNames =['Control','Pbld']  
 
 ## BTL Variables de salida
 distances   = None ## Matrix de distancias por dia
@@ -65,10 +67,10 @@ def loadFileDataWithTime (filepath):
 
 #        filename = 'ed700.csv'
 #        filename = 'FHP-20141008.csv'                
-        filename = 'datosvivienda_test.csv'
+        filename = 'datosvivienda_testwc.csv'
                 
         dateparse = lambda dates: pd.datetime.strptime(dates, '%d/%m/%Y %H:%M:%S')
-        fulldata = pd.read_csv(filepath+filename, sep=',', decimal = '.', index_col='Control',date_parser=dateparse ,usecols=coNames)
+        fulldata = pd.read_csv(filepath+filename, sep=',', decimal = '.', index_col='Control',date_parser=dateparse ,usecols=coSeriesNames)
     
         logger.debug ("Looking for proper daytypes..")         
         #data = fulldata[(pd.to_datetime(fulldata.index).dt.weekday < 5)]
@@ -173,11 +175,36 @@ def doForecasting ():
         hpf.TCPloter (data)
 
 
+def doSeriesForecasting ():
+        
+        
+        tcs = TCSeries.TCSeries("mytest",coNames)
+        fulldata = loadFileDataWithTime(filepath)
+        aggData = fulldata.resample('3H').sum()
+        
+        data_log = tcs.initialize(aggData)
+        tcs.checkStationarity(data_log['Pbld'])
+        
+        data_log_diff = data_log - data_log.shift()
+        data_log_diff.dropna(inplace=True)
+        tcs.checkStationarity(data_log_diff['Pbld'])
+        
+        trend,season,residual = tcs.doForecasting(data_log)
+        plt2.plot (data_log)
+        plt2.plot (trend)
+        plt2.plot (season)
+        plt2.plot (residual)
+        plt2.show()
+        
+        
+
     
 if __name__ == "__main__":
     
     filepath='../Repo/'
     imp.reload(TZZipper)
+    imp.reload(TCPredictor)
+    imp.reload(TCSeries)
     imp.reload(logging)
     
     
@@ -199,7 +226,7 @@ if __name__ == "__main__":
     
 
 #    doMultizone();
-    doForecasting();
-    
+#    doForecasting();
+    doSeriesForecasting();
     logger.debug("Process ended...")
     
