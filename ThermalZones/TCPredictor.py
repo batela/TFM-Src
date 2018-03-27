@@ -82,19 +82,9 @@ class TCPredictor (object):
         self.logger.info ("Finalizamos integracion..")
 #        readyData = np.resize (dayDataInt,(len(dayDataInt)//(24//periodInt),(24//periodInt)))
         readyData = np.resize (dayDataInt,(4,len(dayDataInt)//(4)))
-<<<<<<< HEAD
-        tmp = readyData[3]
-        tmp[tmp<300] = 0
-        tmp[np.where ((tmp>=300) & (tmp<600))] = 1
-        tmp[np.where ((tmp>=600) & (tmp<900))] = 2
-        tmp[np.where ((tmp>=900) & (tmp<1200))] = 3
-        tmp[np.where ((tmp>=1200) & (tmp<1500))] = 4
-        tmp[np.where (tmp>=1500)] = 5
-        self.TCPloter (readyData[0], tmp)
-        return readyData[0], tmp
-=======
+
         return readyData[0], readyData[3]
->>>>>>> 54bebe4ffc6b3dbcb3a327f617f483f4e2092637
+
     
     def labelize (self,data,n, bins, patches):
         
@@ -173,10 +163,7 @@ class TCPredictor (object):
     def TCPloter (self,x,y):
         
         plt.close()
-<<<<<<< HEAD
-=======
-      
->>>>>>> 54bebe4ffc6b3dbcb3a327f617f483f4e2092637
+
         ids = np.repeat(np.arange(180//3), 3) 
         
         Xsm = np.bincount(ids, x)//np.bincount(ids)
@@ -187,11 +174,7 @@ class TCPredictor (object):
         y= shift(y, -15, cval=y[-1])
         plt.plot(x)
         plt.plot(y)
-<<<<<<< HEAD
-        plt.plot(ysm.repeat(3)) 
-        plt.plot(Xsm.repeat(3)) 
-=======
         
         plt.plot(ysm.repeat(3))       
->>>>>>> 54bebe4ffc6b3dbcb3a327f617f483f4e2092637
+
         plt.show()

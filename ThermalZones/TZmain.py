@@ -22,7 +22,7 @@ import TCSeries
 
 from matplotlib import pyplot as plt2
 from scipy.spatial.distance import pdist, squareform
-
+from statsmodels.tsa.arima_model import ARIMA
 
 
 ## Esto no debería estar aqui.... pero por simplificar..
@@ -190,26 +190,114 @@ def doForecasting ():
        # hpf.TCPloter (data)
 
 
+def doSelectBestARIMA  (tcs,data):
+        p_values = [0, 1, 2, 4, 6, 8, 10]
+        d_values = range(0, 3)
+        q_values = range(0, 3)
+        warnings.filterwarnings("ignore")
+        evaluate_models(data, p_values, d_values, q_values)
+
 def doSeriesForecasting ():
         
         
         tcs = TCSeries.TCSeries("mytest",coNames)
         fulldata = loadFileDataWithTime(filepath)
-        aggData = fulldata.resample('3H').sum()
+        aggData = fulldata.resample('4H').mean()
         
         data_log = tcs.initialize(aggData)
         tcs.checkStationarity(data_log['Pbld'])
+#        plt2.subplot(411)
+#        plt2.plot (data_log)
         
-        data_log_diff = data_log - data_log.shift()
+        
+        plt2.subplot(121) 
+        plt2.plot(aggData)
+        
+        plt2.subplot(122)
+        plt2.plot(data_log)
+        
+        plt2.savefig('../Images/ts_base')
+        plt2.close()
+        
+        
+        expwighted_avg = pd.ewma(data_log, halflife=12)
+        
+        #data_log_diff = data_log - data_log.shift()
+        data_log_diff = data_log - expwighted_avg
         data_log_diff.dropna(inplace=True)
         tcs.checkStationarity(data_log_diff['Pbld'])
+        #plt2.subplot(411)
+        #plt2.plot (data_log_diff)
         
-        trend,season,residual = tcs.doForecasting(data_log)
-        plt2.plot (data_log)
-        plt2.plot (trend)
-        plt2.plot (season)
-        plt2.plot (residual)
-        plt2.show()
+        
+        #trend,season,residual = tcs.doForecasting(data_log)
+        residual,lag_acf,lag_pacf = tcs.doForecasting(data_log)
+        tcs.checkStationarity(residual['Pbld'])
+        #Plot ACF: 
+        plt2.subplot(121) 
+        plt2.plot(lag_acf)
+        plt2.axhline(y=0,linestyle='--',color='gray')
+        plt2.axhline(y=-1.96/numpy.sqrt(len(residual)),linestyle='--',color='gray')
+        plt2.axhline(y=1.96/numpy.sqrt(len(residual)),linestyle='--',color='gray')
+        plt2.grid()
+        plt2.title('Autocorrelation Function')
+        
+        plt2.subplot(122)
+        plt2.plot(lag_pacf)
+        plt2.axhline(y=0,linestyle='--',color='gray')
+        plt2.axhline(y=-1.96/numpy.sqrt(len(residual)),linestyle='--',color='gray')
+        plt2.axhline(y=1.96/numpy.sqrt(len(residual)),linestyle='--',color='gray')
+        plt2.title('Partial Autocorrelation Function')
+        plt2.tight_layout()
+        plt2.grid(color='r', linestyle='-', linewidth=2)
+        
+        plt2.savefig('../Images/ts')
+        plt2.close()
+        
+        model = ARIMA(residual, order=(2, 1, 0))  
+        results_AR = model.fit(disp=-1)  
+        plt2.plot(residual)
+        plt2.plot(results_AR.fittedvalues, color='red')
+        #plt2.title('RSS: %.4f'% sum((results_AR.fittedvalues-residual)**2))
+        plt2.savefig('../Images/ts_AR')
+        plt2.close()
+
+        
+        model = ARIMA(residual, order=(0, 1, 2))  
+        results_MA = model.fit(disp=-1)  
+        plt2.plot(residual)
+        plt2.plot(results_MA.fittedvalues, color='red')
+        #plt2.title('RSS: %.4f'% sum((results_MA.fittedvalues-residual)**2))
+        plt2.savefig('../Images/ts_MA')
+        plt2.close()
+
+        model = ARIMA(data_log, order=(2, 1, 2))  
+        results_ARIMA = model.fit(disp=-1)  
+        plt2.plot(residual)
+        plt2.plot(results_ARIMA.fittedvalues, color='red')
+        #plt.title('RSS: %.4f'% sum((results_ARIMA.fittedvalues-ts_log_diff)**2))        
+        
+        
+        plt2.savefig('../Images/ts_ARMA')
+        plt2.close()
+
+#        logger.info ("Checking stationary trend....") 
+#        trend.dropna(inplace=True)
+#        tcs.checkStationarity(trend['Pbld'])    
+#        plt2.subplot(412)
+#        plt2.plot (trend)
+        
+#        logger.info ("Checking stationary season....")   
+#        season.dropna(inplace=True)
+#        tcs.checkStationarity(season['Pbld'])    
+#        plt2.subplot(413)
+#        plt2.plot (season)
+#        residual.dropna(inplace=True)
+#        logger.info ("Checking stationary residual....")         
+#        tcs.checkStationarity(residual['Pbld'])    
+#        plt2.subplot(414)
+#        plt2.plot (residual)
+        #plt2.show()
         
         
 
