@@ -154,6 +154,27 @@ def auxPlotterHisto(data):
 
 
 
+def doPlotSingleToFile (data, fname,title):
+        
+        plt2.plot(data)
+        plt2.grid()
+        plt2.title(title)
+    
+        plt2.savefig('../Images/'+fname)
+        plt2.close()
+        
+
+def doPlotDoubleToFile (data1,data2, fname,title):
+        
+        plt2.plot(data1)
+        plt2.plot(data2)
+        plt2.grid()
+        plt2.title(title)
+    
+        plt2.savefig('../Images/'+fname)
+        plt2.close()
+
+
 
 def doMultizone ():
         ## BTL creamos la clase que utilizaremos    
@@ -192,10 +213,16 @@ def doForecasting ():
 
 def doSelectBestARIMA  (tcs,data):
         p_values = [0, 1, 2, 4, 6, 8, 10]
-        d_values = range(0, 3)
-        q_values = range(0, 3)
-        warnings.filterwarnings("ignore")
-        evaluate_models(data, p_values, d_values, q_values)
+        
+        d_values = range(0,3)
+        q_values = range(0,3)
+        best_sol =tcs.evaluate_models(data['Pbld'], p_values, d_values, q_values)
+        p = best_sol[1][0]
+        d = best_sol[1][1]
+        q = best_sol[1][2]
+        
+        return p,d,q
+
 
 def doSeriesForecasting ():
         
@@ -209,17 +236,14 @@ def doSeriesForecasting ():
 #        plt2.subplot(411)
 #        plt2.plot (data_log)
         
+# Estas graficas solo representan los valores medios 
+# contra el algoritmos de los mismo        
         
-        plt2.subplot(121) 
-        plt2.plot(aggData)
-        
-        plt2.subplot(122)
-        plt2.plot(data_log)
-        
-        plt2.savefig('../Images/ts_base')
-        plt2.close()
-        
-        
+        doPlotSingleToFile (aggData,"ts_base","Base data ")
+        doPlotSingleToFile (data_log,"ts_base_log","Logarimic data")
+
+# Calculo la media pondera realizar la diferencia y verificar
+# si esta diferencia es una serie estacionaria        
         expwighted_avg = pd.ewma(data_log, halflife=12)
         
         #data_log_diff = data_log - data_log.shift()
@@ -230,77 +254,34 @@ def doSeriesForecasting ():
         #plt2.plot (data_log_diff)
         
         
+# Calulo las funciones de autocorrelacion y autocorrelacion parciase.
+# ademas la funcion me devuelve la parte residuo de los datos
+# tras aplicarles el logaritmos. Los valores optimos deberian ser aquellos
+# que en la grafica cortan con 0.2 la primera vez        
         #trend,season,residual = tcs.doForecasting(data_log)
         residual,lag_acf,lag_pacf = tcs.doForecasting(data_log)
         tcs.checkStationarity(residual['Pbld'])
         #Plot ACF: 
-        plt2.subplot(121) 
-        plt2.plot(lag_acf)
-        plt2.axhline(y=0,linestyle='--',color='gray')
-        plt2.axhline(y=-1.96/numpy.sqrt(len(residual)),linestyle='--',color='gray')
-        plt2.axhline(y=1.96/numpy.sqrt(len(residual)),linestyle='--',color='gray')
-        plt2.grid()
-        plt2.title('Autocorrelation Function')
+        doPlotSingleToFile (lag_acf,"ts_ac","Autocorrelation function")
+        doPlotSingleToFile (lag_pacf,"ts_pac","Partial Autocorrelation function")
         
-        plt2.subplot(122)
-        plt2.plot(lag_pacf)
-        plt2.axhline(y=0,linestyle='--',color='gray')
-        plt2.axhline(y=-1.96/numpy.sqrt(len(residual)),linestyle='--',color='gray')
-        plt2.axhline(y=1.96/numpy.sqrt(len(residual)),linestyle='--',color='gray')
-        plt2.title('Partial Autocorrelation Function')
-        plt2.tight_layout()
-        plt2.grid(color='r', linestyle='-', linewidth=2)
-        
-        plt2.savefig('../Images/ts')
-        plt2.close()
-        
-        model = ARIMA(residual, order=(2, 1, 0))  
+# Trato de determinar cuales son los mejore valore de p,q y d
+# OJOOOO !!! Esta funcion tarda mucho....
+        p,d,q =doSelectBestARIMA  (tcs,residual)
+               
+        model = ARIMA(residual, order=(p,d,q))  
         results_AR = model.fit(disp=-1)  
-        plt2.plot(residual)
-        plt2.plot(results_AR.fittedvalues, color='red')
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_AR","AR model")
         #plt2.title('RSS: %.4f'% sum((results_AR.fittedvalues-residual)**2))
-        plt2.savefig('../Images/ts_AR')
-        plt2.close()
-
         
-        model = ARIMA(residual, order=(0, 1, 2))  
-        results_MA = model.fit(disp=-1)  
-        plt2.plot(residual)
-        plt2.plot(results_MA.fittedvalues, color='red')
-        #plt2.title('RSS: %.4f'% sum((results_MA.fittedvalues-residual)**2))
-        plt2.savefig('../Images/ts_MA')
-        plt2.close()
-
-        model = ARIMA(data_log, order=(2, 1, 2))  
+        model = ARIMA(residual, order=(p,d,q))  
+        results_MA = model.fit(disp=-1)
+        doPlotDoubleToFile (residual,results_MA.fittedvalues,"ts_MA","MA model")
+        
+        model = ARIMA(residual, order=(p,d,q))  
         results_ARIMA = model.fit(disp=-1)  
-        plt2.plot(residual)
-        plt2.plot(results_ARIMA.fittedvalues, color='red')
-        #plt.title('RSS: %.4f'% sum((results_ARIMA.fittedvalues-ts_log_diff)**2))        
+        doPlotDoubleToFile (residual,results_ARIMA.fittedvalues,"ts_MA","MA model")
         
-        
-        plt2.savefig('../Images/ts_ARMA')
-        plt2.close()
-
-#        logger.info ("Checking stationary trend....") 
-#        trend.dropna(inplace=True)
-#        tcs.checkStationarity(trend['Pbld'])    
-#        plt2.subplot(412)
-#        plt2.plot (trend)
-        
-#        logger.info ("Checking stationary season....")   
-#        season.dropna(inplace=True)
-#        tcs.checkStationarity(season['Pbld'])    
-#        plt2.subplot(413)
-#        plt2.plot (season)
-#        residual.dropna(inplace=True)
-#        logger.info ("Checking stationary residual....")         
-#        tcs.checkStationarity(residual['Pbld'])    
-#        plt2.subplot(414)
-#        plt2.plot (residual)
-        #plt2.show()
-        
-        
-
     
 if __name__ == "__main__":
     

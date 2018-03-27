@@ -53,7 +53,7 @@ class TCSeries (object):
         dfoutput = pd.Series(dftest[0:4], index=['Test Statistic','p-value','#Lags Used','Number of Observations Used'])
         for key,value in dftest[4].items():
             dfoutput['Critical Value (%s)'%key] = value
-        print (dfoutput)
+        self.logger.info (dfoutput)
 
     def doForecasting  (self, data):
         self.logger.info ("Comenzamos la prediccion")
@@ -83,7 +83,7 @@ class TCSeries (object):
         	predictions = list()
         	for t in range(len(test)):
         		model = ARIMA(history, order=arima_order)
-        		model_fit = model.fit(disp=0)
+        		model_fit = model.fit(disp=-1)
         		yhat = model_fit.forecast()[0]
         		predictions.append(yhat)
         		history.append(test[t])
@@ -108,4 +108,5 @@ class TCSeries (object):
                     except:
                         continue
         self.logger.info ("BEST ARIMA= "+ str (best_cfg) + "MSE= " + str(best_score))      
+        return best_cfg
         	
