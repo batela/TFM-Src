@@ -44,10 +44,14 @@ clusteres   = None ## Clusters encontrados
 distribut   = None ## Distribcion de cada zona en clusteres
 
 
+"""
+Funciones auxiliares para la lectura de datos
+"""
+
+
 def loadFileData (filepath,rooms):
                 
         logger.info ("Loading data from file....")         
-
 #        filename = 'ed700.csv'
 #        filename = 'FHP-20141008.csv'                
         filename = 'datosvivienda_testw.csv'
@@ -107,6 +111,7 @@ def groupByDays(data):
             distances[idD] = squareform(pdist(dayzones[idD], 'seuclidean', V=None) )       
         
         logger.info ("Finish groupByDays")
+
     
 def calculaStadist(data,cl):
         
@@ -118,6 +123,11 @@ def calculaStadist(data,cl):
             for it in list(range (1,numpy.amax(cl)+1)):
                 distribut = dict((it,(l.count(it)*100//dias)) for it in set(l))
             logger.info ("Found data for room " + str (ro) +" : "+ str(distribut))
+
+
+"""
+Funciones auxiliares para plotear..
+"""
                 
 def auxPlotter(data,cl):
                 
@@ -144,15 +154,11 @@ def auxPlotter(data,cl):
                 plt2.close()
                 idxRo+=1
 
-def auxPlotterHisto(data):
-                
-# the histogram of the data
+def auxPlotterHisto(data):                
      plt2.close()
      n, bins, patches = plt2.hist(data, 10, facecolor='green', alpha=0.75)
      plt2.show()
      return n, bins, patches 
-
-
 
 def doPlotSingleToFile (data, fname,title):
         
@@ -173,7 +179,6 @@ def doPlotDoubleToFile (data1,data2, fname,title):
     
         plt2.savefig('../Images/'+fname)
         plt2.close()
-
 
 
 def doMultizone ():
@@ -199,7 +204,7 @@ def doMultizone ():
         calculaStadist(data,clusteres)
 
 
-def doForecasting ():
+def doClassForecasting ():
         hpf = TCPredictor.TCPredictor("mytest",coNames)
         data = hpf.initialize(loadFileData(filepath,coNames),period,30)
         X,y= hpf.integrate(data,4)
@@ -224,7 +229,7 @@ def doSelectBestARIMA  (tcs,data):
         return p,d,q
 
 
-def doSeriesForecasting ():
+def doTimeSeriesForecasting ():
         
         
         tcs = TCSeries.TCSeries("mytest",coNames)
@@ -310,7 +315,7 @@ if __name__ == "__main__":
     
 
 #    doMultizone();
-#    doForecasting();
-    doSeriesForecasting();
+#    doClassForecasting();
+    doTimeSeriesForecasting();
     logger.debug("Process ended...")
     
