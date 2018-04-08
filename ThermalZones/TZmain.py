@@ -184,21 +184,21 @@ def doPlotDoubleToFile (data1,data2, fname,title):
 def doMultizone ():
         ## BTL creamos la clase que utilizaremos    
         hpp = TZZipper.TZZipper("mytest",roomNames)
-        
-    ## BTL Inicializacion y creacion de estructura de datos que utilizaremos.
-    ## "data" es una matriz en el que se ordenan por cada zona los datos corres-
-    ## pondientes a sus "dias" de forma consecutiva. Es decir las primeras n filas 
-    ## pertenecen a los n "dias" de la primera zona
+
+## BTL Inicializacion y creacion de estructura de datos que utilizaremos.
+## "data" es una matriz en el que se ordenan por cada zona los datos corres-
+## pondientes a sus "dias" de forma consecutiva. Es decir las primeras n filas 
+## pertenecen a los n "dias" de la primera zona
         data = hpp.initialize(loadFileData (filepath),k,period,days) # Para RV 3,15,17 Para 700 7,10,0
     
-    ## BTL funcion auxiliar            
+## BTL funcion auxiliar            
         saveFileData (filepath,data)
-    ## BTL funcion que calcula la distancia por dia para cada una de las zonas
+## BTL funcion que calcula la distancia por dia para cada una de las zonas
         groupByDays (data)
         
     #   hpp.clusterize (4,data)
     
-    ## BTL realiza la clusterizacion , plotea y calculo de estadisticas...
+## BTL realiza la clusterizacion , plotea y calculo de estadisticas...
         clusteres = hpp.clusterizeHClust (data)
         auxPlotter(data,clusteres)    
         calculaStadist(data,clusteres)
@@ -212,6 +212,17 @@ def doClassForecasting ():
         yl = hpf.labelize(y,n, bins, patches)
         hpf.doForecasting( X,yl)
         hpf.TCPloter (X, yl)
+        
+       # hpf.TCPloter (data)
+
+
+#  BTL  esta funcion esta por terminar.
+def doRegressionForecasting ():
+        hpf = TCPredictor.TCPredictor("mytest",coNames)
+        data = hpf.initialize(loadFileData(filepath,coNames),period,30)
+        X,y= hpf.integrate(data,4)
+        hpf.doForecastingRegressor( X,y)
+        hpf.TCPloter (X, y)
         
        # hpf.TCPloter (data)
 
@@ -241,13 +252,13 @@ def doTimeSeriesForecasting ():
 #        plt2.subplot(411)
 #        plt2.plot (data_log)
         
-# Estas graficas solo representan los valores medios 
+# BTL Estas graficas solo repsentan los valores medios 
 # contra el algoritmos de los mismo        
         
         doPlotSingleToFile (aggData,"ts_base","Base data ")
         doPlotSingleToFile (data_log,"ts_base_log","Logarimic data")
 
-# Calculo la media pondera realizar la diferencia y verificar
+# BTL Calculo la media pondera realizar la diferencia y verificar
 # si esta diferencia es una serie estacionaria        
         expwighted_avg = pd.ewma(data_log, halflife=12)
         
@@ -259,18 +270,19 @@ def doTimeSeriesForecasting ():
         #plt2.plot (data_log_diff)
         
         
-# Calulo las funciones de autocorrelacion y autocorrelacion parciase.
+# BTL Calulo las funciones de autocorrelacion y autocorrelacion parciales
 # ademas la funcion me devuelve la parte residuo de los datos
 # tras aplicarles el logaritmos. Los valores optimos deberian ser aquellos
-# que en la grafica cortan con 0.2 la primera vez        
+# que en la grafica cortan con 0.2 la primera vez       
         #trend,season,residual = tcs.doForecasting(data_log)
+        
         residual,lag_acf,lag_pacf = tcs.doForecasting(data_log)
         tcs.checkStationarity(residual['Pbld'])
         #Plot ACF: 
         doPlotSingleToFile (lag_acf,"ts_ac","Autocorrelation function")
         doPlotSingleToFile (lag_pacf,"ts_pac","Partial Autocorrelation function")
         
-# Trato de determinar cuales son los mejore valore de p,q y d
+# BTL Trato de determinar cuales son los mejore valore de p,q y d
 # OJOOOO !!! Esta funcion tarda mucho....
         p,d,q =doSelectBestARIMA  (tcs,residual)
                
@@ -296,7 +308,8 @@ if __name__ == "__main__":
     imp.reload(TCSeries)
     imp.reload(logging)
     
-    
+# BTL Inicializar le log    
+
     FORMAT = '%(levelname)s - %(asctime)s - %(filename)s::%(funcName)s - %(message)s'
     #logging.basicConfig(level=logging.DEBUG, format = '%(levelname)s - %(asctime)s - %(filename)s:%(lineno)s - %(message)s')
     logging.basicConfig(level=logging.DEBUG, format = FORMAT)
@@ -310,10 +323,11 @@ if __name__ == "__main__":
 
     # add the handlers to the logger
     logger.addHandler(handler)
+
+# BTL Comienza la ejecucion en sí
     
     logger.info ("Starting process..")
     
-
 #    doMultizone();
 #    doClassForecasting();
     doTimeSeriesForecasting();
