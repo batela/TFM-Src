@@ -15,7 +15,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.neural_network import MLPClassifier,MLPRegressor
 from sklearn.metrics import classification_report,confusion_matrix
-
 from sklearn.cross_validation import cross_val_score
 
 from sklearn.ensemble import RandomForestClassifier
@@ -106,8 +105,35 @@ class TCPredictor (object):
         
         return tmp
         
+    def doForecastingRegressor  (self,  X,Y):    
+
+        ids = np.repeat(np.arange(180//3), 3) 
+        data_input =  X.reshape(-1,1).astype(int) #xsm.repeat(3).reshape(-1,1).astype(int)
+        ysm= np.bincount(ids, Y)//np.bincount(ids)        
+        data_output = ysm.repeat(3).reshape(-1,).astype(int)
         
-    def doForecasting  (self,  X,Y):
+        X_train, X_test, y_train, y_test = train_test_split( data_input, data_output)  
+        x = np.arange(0.0, 1, 0.01).reshape(-1, 1)
+        y = np.sin(2 * np.pi * x).ravel()
+
+        nn = MLPRegressor(
+            hidden_layer_sizes=(10,),  activation='relu', solver='adam', alpha=0.001, batch_size='auto',
+            learning_rate='constant', learning_rate_init=0.01, power_t=0.5, max_iter=1000, shuffle=True,
+            random_state=9, tol=0.0001, verbose=False, warm_start=False, momentum=0.9, nesterovs_momentum=True,
+            early_stopping=False, validation_fraction=0.1, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+
+        n = nn.fit(x, y)
+        test_x = np.arange(0.0, 1, 0.05).reshape(-1, 1)
+        test_y = nn.predict(test_x)
+        fig = plt.figure()
+        ax1 = fig.add_subplot(111)
+        ax1.scatter(x, y, s=1, c='b', marker="s", label='real')
+        ax1.scatter(test_x,test_y, s=10, c='r', marker="o", label='NN Prediction')
+        plt.show()
+
+
+    
+    def doForecastingClassifier  (self,  X,Y):
         
         y = np.array(Y).astype(int)
 #        y=shift(y, -0, cval=y[-1]) # Valido para desplazar la curva, no se usa

@@ -44,10 +44,14 @@ clusteres   = None ## Clusters encontrados
 distribut   = None ## Distribcion de cada zona en clusteres
 
 
+"""
+Funciones auxiliares para la lectura de datos
+"""
+
+
 def loadFileData (filepath,rooms):
                 
         logger.info ("Loading data from file....")         
-
 #        filename = 'ed700.csv'
 #        filename = 'FHP-20141008.csv'                
         filename = 'datosvivienda_testw.csv'
@@ -107,6 +111,7 @@ def groupByDays(data):
             distances[idD] = squareform(pdist(dayzones[idD], 'seuclidean', V=None) )       
         
         logger.info ("Finish groupByDays")
+
     
 def calculaStadist(data,cl):
         
@@ -118,6 +123,11 @@ def calculaStadist(data,cl):
             for it in list(range (1,numpy.amax(cl)+1)):
                 distribut = dict((it,(l.count(it)*100//dias)) for it in set(l))
             logger.info ("Found data for room " + str (ro) +" : "+ str(distribut))
+
+
+"""
+Funciones auxiliares para plotear..
+"""
                 
 def auxPlotter(data,cl):
                 
@@ -144,15 +154,11 @@ def auxPlotter(data,cl):
                 plt2.close()
                 idxRo+=1
 
-def auxPlotterHisto(data):
-                
-# the histogram of the data
+def auxPlotterHisto(data):                
      plt2.close()
      n, bins, patches = plt2.hist(data, 10, facecolor='green', alpha=0.75)
      plt2.show()
      return n, bins, patches 
-
-
 
 def doPlotSingleToFile (data, fname,title):
         
@@ -175,31 +181,30 @@ def doPlotDoubleToFile (data1,data2, fname,title):
         plt2.close()
 
 
-
 def doMultizone ():
         ## BTL creamos la clase que utilizaremos    
         hpp = TZZipper.TZZipper("mytest",roomNames)
-        
-    ## BTL Inicializacion y creacion de estructura de datos que utilizaremos.
-    ## "data" es una matriz en el que se ordenan por cada zona los datos corres-
-    ## pondientes a sus "dias" de forma consecutiva. Es decir las primeras n filas 
-    ## pertenecen a los n "dias" de la primera zona
+
+## BTL Inicializacion y creacion de estructura de datos que utilizaremos.
+## "data" es una matriz en el que se ordenan por cada zona los datos corres-
+## pondientes a sus "dias" de forma consecutiva. Es decir las primeras n filas 
+## pertenecen a los n "dias" de la primera zona
         data = hpp.initialize(loadFileData (filepath),k,period,days) # Para RV 3,15,17 Para 700 7,10,0
     
-    ## BTL funcion auxiliar            
+## BTL funcion auxiliar            
         saveFileData (filepath,data)
-    ## BTL funcion que calcula la distancia por dia para cada una de las zonas
+## BTL funcion que calcula la distancia por dia para cada una de las zonas
         groupByDays (data)
         
     #   hpp.clusterize (4,data)
     
-    ## BTL realiza la clusterizacion , plotea y calculo de estadisticas...
+## BTL realiza la clusterizacion , plotea y calculo de estadisticas...
         clusteres = hpp.clusterizeHClust (data)
         auxPlotter(data,clusteres)    
         calculaStadist(data,clusteres)
 
 
-def doForecasting ():
+def doClassForecasting ():
         hpf = TCPredictor.TCPredictor("mytest",coNames)
         data = hpf.initialize(loadFileData(filepath,coNames),period,30)
         X,y= hpf.integrate(data,4)
@@ -207,6 +212,17 @@ def doForecasting ():
         yl = hpf.labelize(y,n, bins, patches)
         hpf.doForecasting( X,yl)
         hpf.TCPloter (X, yl)
+        
+       # hpf.TCPloter (data)
+
+
+#  BTL  esta funcion esta por terminar.
+def doRegressionForecasting ():
+        hpf = TCPredictor.TCPredictor("mytest",coNames)
+        data = hpf.initialize(loadFileData(filepath,coNames),period,30)
+        X,y= hpf.integrate(data,4)
+        hpf.doForecastingRegressor( X,y)
+        hpf.TCPloter (X, y)
         
        # hpf.TCPloter (data)
 
@@ -224,7 +240,7 @@ def doSelectBestARIMA  (tcs,data):
         return p,d,q
 
 
-def doSeriesForecasting ():
+def doTimeSeriesForecasting ():
         
 # BTL: En primer termino instancio la clase TCSeries, que viene de
 # ThermalComfortSeries... es decir tratamiento por series numericas
@@ -261,20 +277,22 @@ def doSeriesForecasting ():
         tcs.checkStationarity(data_log_diff['Pbld'])
         
         
+
 # BTL:Calulo las funciones de autocorrelacion y autocorrelacion parciase.
 # ademas la funcion me devuelve la parte residuo de los datos
 # tras aplicarles el logaritmos. Los valores optimos deberian ser aquellos
 # que en la grafica cortan con 0.2 la primera vez, se trata de un metodo
 # para identificar los valores de p-q-d a aplicar al modelo ARIMA. Se propone
 # aplicar el modelo ARIMA a la parte residual 
-
-        #trend,season,residual = tcs.doForecasting(data_log)
+#trend,season,residual = tcs.doForecasting(data_log)
+        
         residual,lag_acf,lag_pacf = tcs.doForecasting(data_log)
         tcs.checkStationarity(residual['Pbld'])
         #Plot ACF: 
         doPlotSingleToFile (lag_acf,"ts_ac","Autocorrelation function")
         doPlotSingleToFile (lag_pacf,"ts_pac","Partial Autocorrelation function")
         
+
 # BTL: Trato de determinar cuales son los mejore valore de p,q y d de forma iterativa
 # es decir prueba-error. Este procedimiento puede tardar mucho
 # OJOOOO !!! Esta funcion tarda mucho....
@@ -293,7 +311,8 @@ if __name__ == "__main__":
     imp.reload(TCSeries)
     imp.reload(logging)
     
-    
+# BTL Inicializar le log    
+
     FORMAT = '%(levelname)s - %(asctime)s - %(filename)s::%(funcName)s - %(message)s'
     #logging.basicConfig(level=logging.DEBUG, format = '%(levelname)s - %(asctime)s - %(filename)s:%(lineno)s - %(message)s')
     logging.basicConfig(level=logging.DEBUG, format = FORMAT)
@@ -307,12 +326,13 @@ if __name__ == "__main__":
 
     # add the handlers to the logger
     logger.addHandler(handler)
+
+# BTL Comienza la ejecucion en sí
     
     logger.info ("Starting process..")
     
-
 #    doMultizone();
-#    doForecasting();
-    doSeriesForecasting();
+#    doClassForecasting();
+    doTimeSeriesForecasting();
     logger.debug("Process ended...")
     
