@@ -226,23 +226,32 @@ def doSelectBestARIMA  (tcs,data):
 
 def doSeriesForecasting ():
         
-        
-        tcs = TCSeries.TCSeries("mytest",coNames)
+# BTL: En primer termino instancio la clase TCSeries, que viene de
+# ThermalComfortSeries... es decir tratamiento por series numericas
+# del problema del comfort termico. De todo el dataset solo voy a utilizar
+# las columnas  coSeriesNames =['Control','Pbld']     
+        tcs = TCSeries.TCSeries("mytest",coSeriesNames)
+
+# BTL: Cargamos los datos en el dataframe y realizamos un resample en periodos
+# de cuatro horas tomando la media        
         fulldata = loadFileDataWithTime(filepath)
         aggData = fulldata.resample('4H').mean()
-        
+
+# BTL: Inicializamos el objeto TCSeries esta funcion ademas calcula
+# el logaritmo de los valores, es una forma de penalizar los valores
+# mas altos y homogeneizar la serie. Posteriormente verificamos si 
+# estamos ante una serie estacionaria         
         data_log = tcs.initialize(aggData)
         tcs.checkStationarity(data_log['Pbld'])
-#        plt2.subplot(411)
-#        plt2.plot (data_log)
         
-# Estas graficas solo representan los valores medios 
-# contra el algoritmos de los mismo        
-        
+# BTL: Estas graficas solo representan los valores medios 
+# contra el logarimo de los mismos, solo tiene propositos ilustarativos
+                
         doPlotSingleToFile (aggData,"ts_base","Base data ")
         doPlotSingleToFile (data_log,"ts_base_log","Logarimic data")
 
-# Calculo la media pondera realizar la diferencia y verificar
+# BTL: Otro calculo auxiliar,Calculo la media pondera de manera exponencial
+# Exponentially Weighted Moving Average realizar la diferencia y verificar
 # si esta diferencia es una serie estacionaria        
         expwighted_avg = pd.ewma(data_log, halflife=12)
         
@@ -250,14 +259,15 @@ def doSeriesForecasting ():
         data_log_diff = data_log - expwighted_avg
         data_log_diff.dropna(inplace=True)
         tcs.checkStationarity(data_log_diff['Pbld'])
-        #plt2.subplot(411)
-        #plt2.plot (data_log_diff)
         
         
-# Calulo las funciones de autocorrelacion y autocorrelacion parciase.
+# BTL:Calulo las funciones de autocorrelacion y autocorrelacion parciase.
 # ademas la funcion me devuelve la parte residuo de los datos
 # tras aplicarles el logaritmos. Los valores optimos deberian ser aquellos
-# que en la grafica cortan con 0.2 la primera vez        
+# que en la grafica cortan con 0.2 la primera vez, se trata de un metodo
+# para identificar los valores de p-q-d a aplicar al modelo ARIMA. Se propone
+# aplicar el modelo ARIMA a la parte residual 
+
         #trend,season,residual = tcs.doForecasting(data_log)
         residual,lag_acf,lag_pacf = tcs.doForecasting(data_log)
         tcs.checkStationarity(residual['Pbld'])
@@ -265,22 +275,14 @@ def doSeriesForecasting ():
         doPlotSingleToFile (lag_acf,"ts_ac","Autocorrelation function")
         doPlotSingleToFile (lag_pacf,"ts_pac","Partial Autocorrelation function")
         
-# Trato de determinar cuales son los mejore valore de p,q y d
+# BTL: Trato de determinar cuales son los mejore valore de p,q y d de forma iterativa
+# es decir prueba-error. Este procedimiento puede tardar mucho
 # OJOOOO !!! Esta funcion tarda mucho....
         p,d,q =doSelectBestARIMA  (tcs,residual)
                
         model = ARIMA(residual, order=(p,d,q))  
         results_AR = model.fit(disp=-1)  
-        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_AR","AR model")
-        #plt2.title('RSS: %.4f'% sum((results_AR.fittedvalues-residual)**2))
-        
-        model = ARIMA(residual, order=(p,d,q))  
-        results_MA = model.fit(disp=-1)
-        doPlotDoubleToFile (residual,results_MA.fittedvalues,"ts_MA","MA model")
-        
-        model = ARIMA(residual, order=(p,d,q))  
-        results_ARIMA = model.fit(disp=-1)  
-        doPlotDoubleToFile (residual,results_ARIMA.fittedvalues,"ts_MA","MA model")
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA","ARIMA model")
         
     
 if __name__ == "__main__":
