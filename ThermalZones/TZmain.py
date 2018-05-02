@@ -54,7 +54,7 @@ def loadFileData (filepath,rooms):
         logger.info ("Loading data from file....")         
 #        filename = 'ed700.csv'
 #        filename = 'FHP-20141008.csv'                
-        filename = 'datosvivienda_testw.csv'
+        filename = 'datosvivienda_test.csv'
                 
         fulldata = pd.read_csv(filepath+filename, sep=',', decimal = '.')
         
@@ -107,11 +107,18 @@ def groupByDays(data):
         
         logger.debug ("Calculating distance matrix")       
         distances = numpy.zeros((dias, rooms, rooms))
+
+## BTL Calcula una matriz tridiemnsionale en la cadauna de los planos YZ representa un día,
+## para cada día se disponen de 96 valores, se calcula la distancia de dichos arrays.
         for idD in range (0,dias):
             distances[idD] = squareform(pdist(dayzones[idD], 'seuclidean', V=None) )       
         
+        distancesAvg = numpy.zeros((rooms,rooms))
+        for idR in range (0,rooms):
+            distancesAvg[idR] = distances[:,idR,:].mean(0)       
+        
         logger.info ("Finish groupByDays")
-
+        return distancesAvg
     
 def calculaStadist(data,cl):
         
@@ -146,13 +153,16 @@ def auxPlotter(data,cl):
             count+=1
             if ((count %dias) == 0):
                 ptidx+=1
-            #ptarr[ptidx].plot(it,color=colour[cl[idx-1]])
-            plt2.plot(it,color=colour[cl[idx-1]])        
+
+## BTL: Habia in problema con el indice, se restaba 1 a idx,
+## no hay que hacerlo, estaba cogiendo un valor que no era            
+            plt2.plot(it,color=colour[cl[idx]])        
             ## Prints a chart per room
             if ((idx %dias) == (dias-1)):   
                 plt2.savefig('../Images/zone_'+str(idxRo))
-                plt2.close()
                 idxRo+=1
+                plt2.close()
+                
 
 def auxPlotterHisto(data):                
      plt2.close()
@@ -189,7 +199,7 @@ def doMultizone ():
 ## "data" es una matriz en el que se ordenan por cada zona los datos corres-
 ## pondientes a sus "dias" de forma consecutiva. Es decir las primeras n filas 
 ## pertenecen a los n "dias" de la primera zona
-        data = hpp.initialize(loadFileData (filepath),k,period,days) # Para RV 3,15,17 Para 700 7,10,0
+        data = hpp.initialize(loadFileData (filepath,roomNames),k,period,days) # Para RV 3,15,17 Para 700 7,10,0
     
 ## BTL funcion auxiliar            
         saveFileData (filepath,data)
@@ -331,7 +341,7 @@ if __name__ == "__main__":
     
     logger.info ("Starting process..")
     
-#    doMultizone();
+    doMultizone();
 #    doClassForecasting();
     doTimeSeriesForecasting();
     logger.debug("Process ended...")
