@@ -191,6 +191,14 @@ def doPlotDoubleToFile (data1,data2, fname,title):
         plt2.close()
 
 
+def doPlotDistance (data, fname,title):
+        
+        plt2.matshow(data,cmap="Reds")
+        plt2.title(title)
+        plt2.savefig('../Images/'+fname)
+        plt2.close()
+
+
 def doMultizone ():
         ## BTL creamos la clase que utilizaremos    
         hpp = TZZipper.TZZipper("mytest",roomNames)
@@ -203,14 +211,17 @@ def doMultizone ():
     
 ## BTL funcion auxiliar            
         saveFileData (filepath,data)
-## BTL funcion que calcula la distancia por dia para cada una de las zonas
-        groupByDays (data)
-        
+## BTL funcion que calcula la distancia por dia para cada una de las zonas y realiza
+## el grafico correspondiente
+        distances = groupByDays (data)
+        doPlotDistance(distances,"dists","Distancias")
     #   hpp.clusterize (4,data)
     
 ## BTL realiza la clusterizacion , plotea y calculo de estadisticas...
         clusteres = hpp.clusterizeHClust (data)
         auxPlotter(data,clusteres)    
+## BTL la funcion indica en que clusters se encuentra cada elemento y con 
+## que probabilidad
         calculaStadist(data,clusteres)
 
 
@@ -340,7 +351,8 @@ if __name__ == "__main__":
 # BTL Comienza la ejecucion en sí
     
     logger.info ("Starting process..")
-    
+## La funcion multizona realiza la clusterizacion ademas de 
+## realizar las graficas
     doMultizone();
 #    doClassForecasting();
     doTimeSeriesForecasting();

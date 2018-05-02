@@ -20,9 +20,6 @@ from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.stattools import acf, pacf
 
 
-#from sklearn.cluster import KMeans
-#from scipy.cluster.hierarchy import cophenet
-
 class TCSeries (object):
 
     def __init__(self, params, cols):
@@ -47,6 +44,7 @@ class TCSeries (object):
 #        decomposition = seasonal_decompose(ts_log)        
         self.logger.info ("fin de inicializacion.")
         return self.data_log
+
 
     def checkStationarity(self,timeseries):
         dftest = adfuller(timeseries, autolag='AIC')
