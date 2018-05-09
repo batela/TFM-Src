@@ -240,8 +240,8 @@ def doRegressionForecasting ():
 def doSelectBestARIMA  (tcs,data):
         p_values = [0, 1, 2, 4, 6, 8, 10]
         
-        d_values = range(0,3)
-        q_values = range(0,3)
+        d_values = range(0,2)
+        q_values = range(0,2)
         best_sol =tcs.evaluate_models(data['Pbld'], p_values, d_values, q_values)
         p = best_sol[1][0]
         d = best_sol[1][1]
@@ -286,7 +286,6 @@ def doTimeSeriesForecasting ():
         data_log_diff.dropna(inplace=True)
         tcs.checkStationarity(data_log_diff['Pbld'])
         
-        
 
 # BTL:Calulo las funciones de autocorrelacion y autocorrelacion parciase.
 # ademas la funcion me devuelve la parte residuo de los datos
@@ -306,12 +305,106 @@ def doTimeSeriesForecasting ():
 # BTL: Trato de determinar cuales son los mejore valore de p,q y d de forma iterativa
 # es decir prueba-error. Este procedimiento puede tardar mucho
 # OJOOOO !!! Esta funcion tarda mucho....
-        p,d,q =doSelectBestARIMA  (tcs,residual)
-               
+        # p,d,q =doSelectBestARIMA  (tcs,residual)
+
+
+## BTL: Serie de modelados ARIMA con diferentes valores de pqd para poder
+## verificar que valores son los mejores. En principioi estos valores
+## deberían ser el resultado de la funcion superior, pero no lo son.....PQ???     
+        p=2
+        d=0
+        q=0
         model = ARIMA(residual, order=(p,d,q))  
         results_AR = model.fit(disp=-1)  
-        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA","ARIMA model")
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA"+str(p)+str(d)+str(q),"ARIMA model")
         
+        p=2
+        d=1
+        q=0
+        model = ARIMA(residual, order=(p,d,q))  
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA"+str(p)+str(d)+str(q),"ARIMA model")
+        
+        p=2
+        d=0
+        q=1
+        model = ARIMA(residual, order=(p,d,q))  
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA"+str(p)+str(d)+str(q),"ARIMA model")
+        
+        p=2
+        d=1
+        q=1
+        model = ARIMA(residual, order=(p,d,q))  
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA"+str(p)+str(d)+str(q),"ARIMA model")
+        
+        p=2
+        d=0
+        q=2
+        model = ARIMA(residual, order=(p,d,q))  
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA"+str(p)+str(d)+str(q),"ARIMA model")
+        
+        
+        p=2
+        d=1
+        q=2
+        model = ARIMA(residual, order=(p,d,q))  
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA"+str(p)+str(d)+str(q),"ARIMA model")
+        
+        p=4
+        d=0
+        q=0
+        model = ARIMA(residual, order=(p,d,q))  
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA"+str(p)+str(d)+str(q),"ARIMA model")
+        
+        p=4
+        d=0
+        q=1
+        model = ARIMA(residual, order=(p,d,q))  
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA"+str(p)+str(d)+str(q),"ARIMA model")
+        
+        
+        p=6
+        d=0
+        q=0
+        model = ARIMA(residual, order=(p,d,q))  
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA"+str(p)+str(d)+str(q),"ARIMA model")
+        
+        p=6
+        d=0
+        q=1
+        model = ARIMA(residual, order=(p,d,q))  
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA"+str(p)+str(d)+str(q),"ARIMA model")
+        
+        p=10
+        d=0
+        q=0
+        model = ARIMA(residual, order=(p,d,q))  
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA"+str(p)+str(d)+str(q),"ARIMA model")
+        
+        p=10
+        d=0
+        q=1
+        model = ARIMA(residual, order=(p,d,q))  
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA"+str(p)+str(d)+str(q),"ARIMA model")
+        
+        p=10
+        d=1
+        q=0
+        model = ARIMA(residual, order=(p,d,q))  
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA"+str(p)+str(d)+str(q),"ARIMA model")
+        
+    
     
 if __name__ == "__main__":
     
@@ -341,7 +434,7 @@ if __name__ == "__main__":
     
     logger.info ("Starting process..")
     
-    doMultizone();
+#    doMultizone();
 #    doClassForecasting();
     doTimeSeriesForecasting();
     logger.debug("Process ended...")
