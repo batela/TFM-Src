@@ -444,8 +444,7 @@ if __name__ == "__main__":
 # BTL Comienza la ejecucion en sí
     
     logger.info ("Starting process..")
-
-    
+   
 #    doMultizone();
     doClassForecasting();
     doTimeSeriesForecasting();
