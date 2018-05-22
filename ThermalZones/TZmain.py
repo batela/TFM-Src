@@ -23,7 +23,7 @@ import TCSeries
 from matplotlib import pyplot as plt2
 from scipy.spatial.distance import pdist, squareform
 from statsmodels.tsa.arima_model import ARIMA
-
+from sklearn.preprocessing import MinMaxScaler
 
 ## Esto no debería estar aqui.... pero por simplificar..
 ## BTL Variables de entrada
@@ -36,7 +36,7 @@ roomNames =['R0T','R1','R2','R3','R4','R5','R6','R7T']
 
 
 coNames =['Toutdoor','Tindoor','Fbld','Pbld']        
-coSeriesNames =['Control','Pbld']  
+coSeriesNames =['Control','Pbld','Toutdoor']  
 
 ## BTL Variables de salida
 distances   = None ## Matrix de distancias por dia
@@ -253,7 +253,7 @@ def doSelectBestARIMA  (tcs,data):
         
         d_values = range(0,3)
         q_values = range(0,3)
-        best_sol =tcs.evaluate_models(data['Pbld'], p_values, d_values, q_values)
+        best_sol, best_sol_aic =tcs.evaluate_models(data, p_values, d_values, q_values)
         p = best_sol[1][0]
         d = best_sol[1][1]
         q = best_sol[1][2]
@@ -261,6 +261,61 @@ def doSelectBestARIMA  (tcs,data):
         return p,d,q
 
 
+def doTimeSeriesARIMAXForecasting ():
+        
+# BTL: En primer termino instancio la clase TCSeries, que viene de
+# ThermalComfortSeries... es decir tratamiento por series numericas
+# del problema del comfort termico. De todo el dataset solo voy a utilizar
+# las columnas  coSeriesNames =['Control','Pbld','Toutdoor']     
+        tcs = TCSeries.TCSeries("mytest",coSeriesNames)
+
+# BTL: Cargamos los datos en el dataframe y realizamos un resample en periodos
+# de cuatro horas tomando la media        
+        fulldata = loadFileDataWithTime(filepath)
+        aggData = fulldata.resample('4H').mean()
+
+# BTL: Inicializamos el objeto TCSeries esta funcion ademas calcula
+# el logaritmo de los valores, es una forma de penalizar los valores
+# mas altos y homogeneizar la serie. Posteriormente verificamos si 
+# estamos ante una serie estacionaria         
+        data_log = tcs.initialize(aggData)
+        tcs.checkStationarity(data_log['Pbld'])
+ 
+# BTL: Otro calculo auxiliar,Calculo la media pondera de manera exponencial
+# Exponentially Weighted Moving Average realizar la diferencia y verificar
+# si esta diferencia es una serie estacionaria, probamos a coger una ventana
+# de un dia es decir como hemos agrupado cada 4h cogemos halflife de 6        
+        expwighted_avg = pd.ewma(data_log, halflife=6)       
+        data_log_diff = data_log - data_log.shift()
+        data_log_diff = data_log - expwighted_avg
+        data_log_diff.dropna(inplace=True)
+        
+        
+        residual,lag_acf,lag_pacf = tcs.doForecasting(data_log)
+        
+        scaler = MinMaxScaler(feature_range=(0, 1))
+        
+        dataAR = pd.DataFrame()
+        dataAR['ToutdoorRef'] = aggData['Toutdoor']
+        dataAR['Pbld'] = aggData['Pbld']
+        
+        
+        scaler = scaler.fit(dataAR['Pbld'].reshape(-1,1))
+        normalizedPbld = scaler.transform(dataAR['Pbld'].reshape(-1,1))
+        
+        scaler = scaler.fit(dataAR['ToutdoorRef'].reshape(-1,1))
+        normalizedOutdoor = scaler.transform(dataAR['ToutdoorRef'].reshape(-1,1))
+        
+        p = 8 #10
+        d = 0
+        q = 2 #0
+        model = ARIMA(endog=normalizedPbld,exog=normalizedOutdoor,order=[p,d,q]) 
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (normalizedPbld,results_AR.fittedvalues,"ts_ARIMAX_"+str(p)+str(d)+str(q),"ARIMAX model")
+        
+
+
+    
 def doTimeSeriesForecasting ():
         
 # BTL: En primer termino instancio la clase TCSeries, que viene de
@@ -289,13 +344,15 @@ def doTimeSeriesForecasting ():
 
 # BTL: Otro calculo auxiliar,Calculo la media pondera de manera exponencial
 # Exponentially Weighted Moving Average realizar la diferencia y verificar
-# si esta diferencia es una serie estacionaria        
-        expwighted_avg = pd.ewma(data_log, halflife=12)
+# si esta diferencia es una serie estacionaria, probamos a coger una ventana
+# de un dia es decir como hemos agrupado cada 4h cogemos halflife de 6        
+        expwighted_avg = pd.ewma(data_log, halflife=6)
         
         #data_log_diff = data_log - data_log.shift()
         data_log_diff = data_log - expwighted_avg
         data_log_diff.dropna(inplace=True)
         tcs.checkStationarity(data_log_diff['Pbld'])
+        
         
         
 
@@ -308,22 +365,33 @@ def doTimeSeriesForecasting ():
 #trend,season,residual = tcs.doForecasting(data_log)
         
         residual,lag_acf,lag_pacf = tcs.doForecasting(data_log)
-        tcs.checkStationarity(residual['Pbld'])
+        tcs.checkStationarity(residual)
         #Plot ACF: 
         doPlotSingleToFile (lag_acf,"ts_ac","Autocorrelation function")
         doPlotSingleToFile (lag_pacf,"ts_pac","Partial Autocorrelation function")
-        
 
-# BTL: Trato de determinar cuales son los mejore valore de p,q y d de forma iterativa
+        # BTL: Trato de determinar cuales son los mejore valore de p,q y d de forma iterativa
 # es decir prueba-error. Este procedimiento puede tardar mucho
 # OJOOOO !!! Esta funcion tarda mucho....
-        p,d,q =doSelectBestARIMA  (tcs,residual)
-               
+
+        best_sol_mse,best_sol_aic =doSelectBestARIMA  (tcs,residual)
+# BTL realizamos la grafica con la mejor opcion segun el metodo AIC
+        p = best_sol_aic[1][0]
+        d = best_sol_aic[1][1]
+        q = best_sol_aic[1][2]
+        model = ARIMA(residual, order=(p,d,q))  
+        results_AR = model.fit(disp=-1)
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA_"+str(p)+str(d)+str(q),"ARIMA model")
+
+# BTL realizamos la grafica con la mejor opcion segun el metodo MSE                
+        p = best_sol_mse[1][0]
+        d = best_sol_mse[1][1]
+        q = best_sol_mse[1][2]
         model = ARIMA(residual, order=(p,d,q))  
         results_AR = model.fit(disp=-1)  
-        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA","ARIMA model")
-        
-    
+        doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA_"+str(p)+str(d)+str(q),"ARIMA model")
+ 
+            
 if __name__ == "__main__":
     
     filepath='../Repo/'
@@ -353,8 +421,14 @@ if __name__ == "__main__":
     logger.info ("Starting process..")
 ## La funcion multizona realiza la clusterizacion ademas de 
 ## realizar las graficas
-    doMultizone();
+##    doMultizone();
 #    doClassForecasting();
-    doTimeSeriesForecasting();
+
+# BTL: Modelado por series temporales tradicionales ARIMA    
+    doTimeSeriesForecasting()
+# BTL: Incorporando una variable exogena, utilizo los mismos valores
+# pdq que he obtenido anteriormente
+    doTimeSeriesARIMAXForecasting()
+    
     logger.debug("Process ended...")
     

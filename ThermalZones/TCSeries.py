@@ -18,7 +18,7 @@ from sklearn.metrics import mean_squared_error
 from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.stattools import acf, pacf
-
+import statsmodels.api as sm
 
 class TCSeries (object):
 
@@ -57,7 +57,7 @@ class TCSeries (object):
         self.logger.info ("Comenzamos la prediccion")
       
         self.logger.debug ("Fase #1: Descomposicion...")
-        decomposition = seasonal_decompose(data)
+        decomposition = seasonal_decompose(data['Pbld'])
 
         trend = decomposition.trend
         seasonal = decomposition.seasonal
@@ -70,41 +70,54 @@ class TCSeries (object):
         self.logger.info ("Fin de la prediccion")
         return residual,lag_acf,lag_pacf
         
- 
     # Evalua una tripleta individual
     def evaluate_arima_model(self,X, arima_order):
         	# prepare training dataset
-        	train_size = int(len(X) * 0.66)
-        	train, test = X[0:train_size], X[train_size:]
-        	history = [x for x in train]
+        train_size = int(len(X) * 0.66)
+        train, test = X[0:train_size], X[train_size:]
+        history = [x for x in train]
         	# make predictions
-        	predictions = list()
-        	for t in range(len(test)):
-        		model = ARIMA(history, order=arima_order)
-        		model_fit = model.fit(disp=-1)
+        predictions = list()
+        model = ARIMA(history, order=arima_order)
+        model_fit = model.fit(disp=-1)        		
+        for t in range(len(test)):
         		yhat = model_fit.forecast()[0]
         		predictions.append(yhat)
         		history.append(test[t])
         	# calculate out of sample error
-        	error = mean_squared_error(test, predictions)
-        	return error
+        error = mean_squared_error(test, predictions)
+        aic = model_fit.aic
+        return error,aic
  
     # Esta funcion evalua los diferentes posibles valores de d ,q ,d
     # para posteriormente quedarse con el mejor
     def evaluate_models(self,dataset, p_values, d_values, q_values):
         dataset = dataset.astype('float32')
-        best_score, best_cfg = float("inf"), None
+        best_score,best_score_aic, best_cfg, best_cfg_aic = float("inf"),float("inf"),None, None
         for p in p_values:
             for d in d_values:
                 for q in q_values:
                     order = (p,d,q)
                     try:
-                        mse =  self.evaluate_arima_model(dataset, order)
+                        mse, aic =  self.evaluate_arima_model(dataset, order)
                         if mse < best_score:
                             best_cfg = mse, order
+                            best_score = mse
                         self.logger.info ("'ARIMA%s MSE=" + str((order,mse)))
+                        if aic < best_score_aic:
+                            best_cfg_aic = aic, order
+                            best_score_aic = aic
+                        
+                        self.logger.info ("'ARIMA%s AIC=" + str((order,aic)))
                     except:
                         continue
-        self.logger.info ("BEST ARIMA= "+ str (best_cfg) + "MSE= " + str(best_score))      
-        return best_cfg
+        #self.logger.info ("BEST ARIMA= "+ str (best_cfg) + "AIC= " + str(best_score_aic))      
+        return best_cfg , best_cfg_aic
         	
+## Esta funcion analiza de forma stadistica la dependiencia de los valores entre si    
+    def checkRegresionModel (self,fulldata):
+        fulldata['const']=1
+        olsModel=sm.OLS(endog=fulldata['Pbld'],exog=fulldata[['Toutdoor','const']])
+        results1=olsModel.fit()
+        print(results1.summary())    
+        
