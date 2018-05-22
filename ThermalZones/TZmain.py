@@ -253,12 +253,10 @@ def doSelectBestARIMA  (tcs,data):
         
         d_values = range(0,3)
         q_values = range(0,3)
-        best_sol, best_sol_aic =tcs.evaluate_models(data, p_values, d_values, q_values)
-        p = best_sol[1][0]
-        d = best_sol[1][1]
-        q = best_sol[1][2]
         
-        return p,d,q
+        best_sol, best_sol_aic =tcs.evaluate_models(data, p_values, d_values, q_values)
+        
+        return best_sol, best_sol_aic
 
 
 def doTimeSeriesARIMAXForecasting ():
@@ -353,8 +351,6 @@ def doTimeSeriesForecasting ():
         data_log_diff.dropna(inplace=True)
         tcs.checkStationarity(data_log_diff['Pbld'])
         
-        
-        
 
 # BTL:Calulo las funciones de autocorrelacion y autocorrelacion parciase.
 # ademas la funcion me devuelve la parte residuo de los datos
@@ -391,7 +387,6 @@ def doTimeSeriesForecasting ():
         results_AR = model.fit(disp=-1)  
         doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA_"+str(p)+str(d)+str(q),"ARIMA model")
  
-            
 if __name__ == "__main__":
     
     filepath='../Repo/'
