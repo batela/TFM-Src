@@ -120,6 +120,8 @@ def groupByDays(data):
         logger.info ("Finish groupByDays")
         return distancesAvg
     
+    
+    
 def calculaStadist(data,cl):
         
         dias = len(cl)//(rooms)
@@ -133,7 +135,7 @@ def calculaStadist(data,cl):
 
 
 """
-Funciones auxiliares para plotear..
+Funciones auxiliares para plotear..si se quiere
 """
                 
 def auxPlotter(data,cl):
