@@ -136,6 +136,8 @@ def calculaStadist(data,cl):
 
 """
 Funciones auxiliares para plotear..si se quiere
+
+
 """
                 
 def auxPlotter(data,cl):
