@@ -71,8 +71,9 @@ def loadFileDataWithTime (filepath):
 
 #        filename = 'ed700.csv'
 #        filename = 'FHP-20141008.csv'                
-        filename = 'datosvivienda_tfm.csv'
-                
+        #filename = 'datosvivienda_tfm.csv'
+        filename = 'datosvivienta_testwc.csv'        
+        
         dateparse = lambda dates: pd.datetime.strptime(dates, '%d/%m/%Y %H:%M:%S')
         fulldata = pd.read_csv(filepath+filename, sep=',', decimal = '.', index_col='Control',date_parser=dateparse ,usecols=coSeriesNames)
     
@@ -291,7 +292,8 @@ def doTimeSeriesARIMAXForecasting ():
         dataAR = pd.DataFrame()
         dataAR['ToutdoorRef'] = aggData['Toutdoor']
         dataAR['Pbld'] = aggData['Pbld']
-        
+        dataAR['ToutdoorRef'][abs(dataAR['ToutdoorRef']>100)]=0 
+
 ## BTL Realizamos el estudio sin normalizar los valores
         p = 8 #10
         d = 0
