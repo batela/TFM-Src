@@ -424,7 +424,7 @@ if __name__ == "__main__":
 #    doClassForecasting();
 
 # BTL: Modelado por series temporales tradicionales ARIMA    
-    doTimeSeriesForecasting()
+#    doTimeSeriesForecasting()
 # BTL: Incorporando una variable exogena, utilizo los mismos valores
 # pdq que he obtenido anteriormente
     doTimeSeriesARIMAXForecasting()
