@@ -283,16 +283,7 @@ def doTimeSeriesARIMAXForecasting ():
         data_log = tcs.initialize(aggData)
         tcs.checkStationarity(data_log['Pbld'])
  
-# BTL: Otro calculo auxiliar,Calculo la media pondera de manera exponencial
-# Exponentially Weighted Moving Average realizar la diferencia y verificar
-# si esta diferencia es una serie estacionaria, probamos a coger una ventana
-# de un dia es decir como hemos agrupado cada 4h cogemos halflife de 6        
-        expwighted_avg = pd.ewma(data_log, halflife=6)       
-        data_log_diff = data_log - data_log.shift()
-        data_log_diff = data_log - expwighted_avg
-        data_log_diff.dropna(inplace=True)
-        
-        
+                
         residual,lag_acf,lag_pacf = tcs.doForecasting(data_log)
         
         scaler = MinMaxScaler(feature_range=(0, 1))
@@ -301,7 +292,16 @@ def doTimeSeriesARIMAXForecasting ():
         dataAR['ToutdoorRef'] = aggData['Toutdoor']
         dataAR['Pbld'] = aggData['Pbld']
         
-        
+## BTL Realizamos el estudio sin normalizar los valores
+        p = 8 #10
+        d = 0
+        q = 2 #0
+        model = ARIMA(endog=dataAR['Pbld'],exog=dataAR['ToutdoorRef'] ,order=[p,d,q]) 
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (dataAR['Pbld'],results_AR.fittedvalues,"ts_ARIMAX_"+str(p)+str(d)+str(q),"ARIMAX model")
+
+## BTL Realizamos el estudio habiendo normalizadoo los valores
+                
         scaler = scaler.fit(dataAR['Pbld'].reshape(-1,1))
         normalizedPbld = scaler.transform(dataAR['Pbld'].reshape(-1,1))
         
@@ -313,7 +313,7 @@ def doTimeSeriesARIMAXForecasting ():
         q = 2 #0
         model = ARIMA(endog=normalizedPbld,exog=normalizedOutdoor,order=[p,d,q]) 
         results_AR = model.fit(disp=-1)  
-        doPlotDoubleToFile (normalizedPbld,results_AR.fittedvalues,"ts_ARIMAX_"+str(p)+str(d)+str(q),"ARIMAX model")
+        doPlotDoubleToFile (normalizedPbld,results_AR.fittedvalues,"ts_ARIMAX_Normaliz_"+str(p)+str(d)+str(q),"ARIMAX model")
         
 
 
@@ -424,7 +424,7 @@ if __name__ == "__main__":
 #    doClassForecasting();
 
 # BTL: Modelado por series temporales tradicionales ARIMA    
-    doTimeSeriesForecasting()
+#    doTimeSeriesForecasting()
 # BTL: Incorporando una variable exogena, utilizo los mismos valores
 # pdq que he obtenido anteriormente
     doTimeSeriesARIMAXForecasting()
