@@ -72,7 +72,7 @@ def loadFileDataWithTime (filepath):
 #        filename = 'ed700.csv'
 #        filename = 'FHP-20141008.csv'                
         #filename = 'datosvivienda_tfm.csv'
-        filename = 'datosvivienta_testwc.csv'        
+        filename = 'datosvivienda_testwc.csv'        
         
         dateparse = lambda dates: pd.datetime.strptime(dates, '%d/%m/%Y %H:%M:%S')
         fulldata = pd.read_csv(filepath+filename, sep=',', decimal = '.', index_col='Control',date_parser=dateparse ,usecols=coSeriesNames)
@@ -281,11 +281,11 @@ def doTimeSeriesARIMAXForecasting ():
 # el logaritmo de los valores, es una forma de penalizar los valores
 # mas altos y homogeneizar la serie. Posteriormente verificamos si 
 # estamos ante una serie estacionaria         
-        data_log = tcs.initialize(aggData)
-        tcs.checkStationarity(data_log['Pbld'])
+        #data_log = tcs.initialize(aggData)
+        tcs.checkStationarity(aggData['Pbld'])
  
                 
-        residual,lag_acf,lag_pacf = tcs.doForecasting(data_log)
+        #residual,lag_acf,lag_pacf = tcs.doForecasting(data_log)
         
         scaler = MinMaxScaler(feature_range=(0, 1))
         
