@@ -36,7 +36,7 @@ roomNames =['R0T','R1','R2','R3','R4','R5','R6','R7T']
 
 
 coNames =['Toutdoor','Tindoor','Fbld','Pbld']        
-coSeriesNames =['Control','Pbld','Toutdoor']  
+coSeriesNames =['Control','Pbld','Toutdoor','Tindoor']  
 
 ## BTL Variables de salida
 distances   = None ## Matrix de distancias por dia
@@ -71,7 +71,7 @@ def loadFileDataWithTime (filepath):
 
 #        filename = 'ed700.csv'
 #        filename = 'FHP-20141008.csv'                
-        filename = 'datosvivienda_testwc.csv'
+        filename = 'datosvivienda_tfm.csv'
                 
         dateparse = lambda dates: pd.datetime.strptime(dates, '%d/%m/%Y %H:%M:%S')
         fulldata = pd.read_csv(filepath+filename, sep=',', decimal = '.', index_col='Control',date_parser=dateparse ,usecols=coSeriesNames)
@@ -425,6 +425,7 @@ if __name__ == "__main__":
 
 # BTL: Modelado por series temporales tradicionales ARIMA    
 #    doTimeSeriesForecasting()
+
 # BTL: Incorporando una variable exogena, utilizo los mismos valores
 # pdq que he obtenido anteriormente
     doTimeSeriesARIMAXForecasting()
