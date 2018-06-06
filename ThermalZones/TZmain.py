@@ -24,6 +24,7 @@ from matplotlib import pyplot as plt2
 from scipy.spatial.distance import pdist, squareform
 from statsmodels.tsa.arima_model import ARIMA
 from sklearn.preprocessing import MinMaxScaler
+from statsmodels.tsa.seasonal import seasonal_decompose
 
 ## Esto no debería estar aqui.... pero por simplificar..
 ## BTL Variables de entrada
@@ -256,12 +257,137 @@ def doRegressionForecasting ():
 def doSelectBestARIMA  (tcs,data):
         p_values = [0, 1, 2, 4, 6, 8, 10]
         
-        d_values = range(0,3)
+        d_values = range(0,1)
         q_values = range(0,3)
         
         best_sol, best_sol_aic =tcs.evaluate_models(data, p_values, d_values, q_values)
         
         return best_sol, best_sol_aic
+
+def doTimeSeriesARIMAXForecastingWithResiduals ():
+        
+# BTL: En primer termino instancio la clase TCSeries, que viene de
+# ThermalComfortSeries... es decir tratamiento por series numericas
+# del problema del comfort termico. De todo el dataset solo voy a utilizar
+# las columnas  coSeriesNames =['Control','Pbld','Toutdoor']     
+        tcs = TCSeries.TCSeries("mytest",coSeriesNames)
+
+# BTL: Cargamos los datos en el dataframe y realizamos un resample en periodos
+# de cuatro horas tomando la media        
+        fulldata = loadFileDataWithTime(filepath)
+        aggData = fulldata.resample('4H').mean()
+
+# BTL: Inicializamos el objeto TCSeries esta funcion ademas calcula
+# el logaritmo de los valores, es una forma de penalizar los valores
+# mas altos y homogeneizar la serie. Posteriormente verificamos si 
+# estamos ante una serie estacionaria         
+        #data_log = tcs.initialize(aggData)
+        
+        outAddFuller = tcs.checkStationarity(aggData['Pbld'])
+        logger.debug("El test de fuller indica que es estacionario: " , (outAddFuller[0]))
+        outAddFuller = tcs.checkStationarity(numpy.log(aggData['Pbld']))
+        logger.debug("El test de fuller indica que es estacionario: " , (outAddFuller[0])) 
+        
+        decomposition = seasonal_decompose(numpy.log(aggData['Pbld']))
+        residual = decomposition.resid
+        residual.dropna(inplace=True)
+        
+        PackAggData = pd.DataFrame()
+        PackAggData=aggData[aggData.index.isin(residual.index)]
+        outAddFuller = tcs.checkStationarity(residual)
+        
+        logger.debug("El test de fuller indica que es estacionario: " +str (outAddFuller[0]))
+        
+        
+        scaler = MinMaxScaler(feature_range=(0, 1))
+
+## BTL de aqui en adelante se usan la estructuras dataAR y nos quedamos con el residuo      
+        dataAR = pd.DataFrame()
+        dataAR['ToutdoorRef'] = PackAggData['Toutdoor']
+        dataAR['Pbld'] = residual
+        dataAR['ToutdoorRef'][abs(dataAR['ToutdoorRef']>100)]=0 
+        
+        
+## BTL Realizamos el estudio sin normalizar los valores
+        p = 8 #10
+        d = 0
+        q = 2 #0
+        model = ARIMA(endog=dataAR['Pbld'],exog=dataAR['ToutdoorRef'] ,order=[p,d,q]) 
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (dataAR['Pbld'],results_AR.fittedvalues,"ts_ARIMAX_RESIDUAL_"+str(p)+str(d)+str(q),"ARIMAX model RESIDUAL")
+
+## BTL Realizamos el estudio habiendo normalizadoo los valores
+                
+        scaler = scaler.fit(dataAR['Pbld'].reshape(-1,1))
+        normalizedPbld = scaler.transform(dataAR['Pbld'].reshape(-1,1))
+        
+        scaler = scaler.fit(dataAR['ToutdoorRef'].reshape(-1,1))
+        normalizedOutdoor = scaler.transform(dataAR['ToutdoorRef'].reshape(-1,1))
+        
+        p = 8 #10
+        d = 0
+        q = 2 #0
+        model = ARIMA(endog=normalizedPbld,exog=normalizedOutdoor,order=[p,d,q]) 
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (normalizedPbld,results_AR.fittedvalues,"ts_ARIMAX_RESIDUAL_NORMALIZADO_"+str(p)+str(d)+str(q),"ARIMAX model RESIDUAL NORMALIZADO")
+        
+###################################################################
+## BTL ahora realizamos la convolucion y el suavizado
+        
+        dataAR['Pbld'] = tcs.smoothSerie (dataAR['Pbld'],3)
+        
+        ## BTL Realizamos el estudio sin normalizar los valores
+        p = 8 #10
+        d = 0
+        q = 2 #0
+        model = ARIMA(endog=dataAR['Pbld'],exog=dataAR['ToutdoorRef'] ,order=[p,d,q]) 
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (dataAR['Pbld'],results_AR.fittedvalues,"ts_ARIMAX_RESIDUAL_SUAVIZADO_"+str(p)+str(d)+str(q),"ARIMAX model RESIDUAL SUAVIZADO")
+
+## BTL Realizamos el estudio habiendo normalizadoo los valores
+                
+        scaler = scaler.fit(dataAR['Pbld'].reshape(-1,1))
+        normalizedPbld = scaler.transform(dataAR['Pbld'].reshape(-1,1))
+        
+        scaler = scaler.fit(dataAR['ToutdoorRef'].reshape(-1,1))
+        normalizedOutdoor = scaler.transform(dataAR['ToutdoorRef'].reshape(-1,1))
+        
+        p = 8 #10
+        d = 0
+        q = 2 #0
+        model = ARIMA(endog=normalizedPbld,exog=normalizedOutdoor,order=[p,d,q]) 
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (normalizedPbld,results_AR.fittedvalues,"ts_ARIMAX_RESIDUAL_SUAVIZADO_NORMALIZADO_"+str(p)+str(d)+str(q),"ARIMAX model RESIDUAL NORMALIZADO SUAVIZADO")
+
+
+###################################################################
+## BTL finalmente realizamos el estudio quitando outliers
+#        
+#        dataAR['Pbld'] = tcs.removeOutliers (dataAR['Pbld'],2)
+#        dataAR['Pbld'].dropna(inplace=True)
+#        
+        ## BTL Realizamos el estudio sin normalizar los valores
+#        p = 8 #10
+#        d = 0
+#        q = 2 #0
+#        model = ARIMA(endog=dataAR['Pbld'],exog=dataAR['ToutdoorRef'] ,order=[p,d,q]) 
+#        results_AR = model.fit(disp=-1)  
+#        doPlotDoubleToFile (dataAR['Pbld'],results_AR.fittedvalues,"ts_ARIMAX_RESIDUAL_SUAVIZADO_SINOUTL_"+str(p)+str(d)+str(q),"ARIMAX model")
+
+## BTL Realizamos el estudio habiendo normalizadoo los valores
+                
+#        scaler = scaler.fit(dataAR['Pbld'].reshape(-1,1))
+#        normalizedPbld = scaler.transform(dataAR['Pbld'].reshape(-1,1))
+        
+#        scaler = scaler.fit(dataAR['ToutdoorRef'].reshape(-1,1))
+#        normalizedOutdoor = scaler.transform(dataAR['ToutdoorRef'].reshape(-1,1))
+        
+#        p = 8 #10
+#        d = 0
+#        q = 2 #0
+#        model = ARIMA(endog=normalizedPbld,exog=normalizedOutdoor,order=[p,d,q]) 
+#        results_AR = model.fit(disp=-1)  
+#        doPlotDoubleToFile (normalizedPbld,results_AR.fittedvalues,"ts_ARIMAX_RESIDUAL_SUAVIZADO_SINOUTL_NORMALIZADO_"+str(p)+str(d)+str(q),"ARIMAX model")
 
 
 def doTimeSeriesARIMAXForecasting ():
@@ -282,18 +408,21 @@ def doTimeSeriesARIMAXForecasting ():
 # mas altos y homogeneizar la serie. Posteriormente verificamos si 
 # estamos ante una serie estacionaria         
         #data_log = tcs.initialize(aggData)
-        tcs.checkStationarity(aggData['Pbld'])
- 
+        
+        outAddFuller = tcs.checkStationarity(aggData['Pbld'])
+        logger.debug("El test de fuller indica que es estacionario: " + str(outAddFuller[0]))
+        outAddFuller = tcs.checkStationarity(numpy.log(aggData['Pbld']))
+        logger.debug("El test de fuller indica que es estacionario: " + str(outAddFuller[0])) 
                 
-        #residual,lag_acf,lag_pacf = tcs.doForecasting(data_log)
         
         scaler = MinMaxScaler(feature_range=(0, 1))
-        
+
+## BTL de aqui en adelante se usan la estructuras dataAR        
         dataAR = pd.DataFrame()
         dataAR['ToutdoorRef'] = aggData['Toutdoor']
-        dataAR['Pbld'] = aggData['Pbld']
+        dataAR['Pbld'] = numpy.log(aggData['Pbld'])
         dataAR['ToutdoorRef'][abs(dataAR['ToutdoorRef']>100)]=0 
-
+        
 ## BTL Realizamos el estudio sin normalizar los valores
         p = 8 #10
         d = 0
@@ -315,8 +444,64 @@ def doTimeSeriesARIMAXForecasting ():
         q = 2 #0
         model = ARIMA(endog=normalizedPbld,exog=normalizedOutdoor,order=[p,d,q]) 
         results_AR = model.fit(disp=-1)  
-        doPlotDoubleToFile (normalizedPbld,results_AR.fittedvalues,"ts_ARIMAX_Normaliz_"+str(p)+str(d)+str(q),"ARIMAX model")
+        doPlotDoubleToFile (normalizedPbld,results_AR.fittedvalues,"ts_ARIMAX_NORMALIZADO_"+str(p)+str(d)+str(q),"ARIMAX model NORMALIZADO")
         
+###################################################################
+## BTL ahora realizamos la convolucion y el suavizado
+        
+        dataAR['Pbld'] = tcs.smoothSerie (dataAR['Pbld'],3)
+        
+        ## BTL Realizamos el estudio sin normalizar los valores
+        p = 8 #10
+        d = 0
+        q = 2 #0
+        model = ARIMA(endog=dataAR['Pbld'],exog=dataAR['ToutdoorRef'] ,order=[p,d,q]) 
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (dataAR['Pbld'],results_AR.fittedvalues,"ts_ARIMAX_SUAVIZADO_"+str(p)+str(d)+str(q),"ARIMAX model SUAVIZADO")
+
+## BTL Realizamos el estudio habiendo normalizadoo los valores
+                
+        scaler = scaler.fit(dataAR['Pbld'].reshape(-1,1))
+        normalizedPbld = scaler.transform(dataAR['Pbld'].reshape(-1,1))
+        
+        scaler = scaler.fit(dataAR['ToutdoorRef'].reshape(-1,1))
+        normalizedOutdoor = scaler.transform(dataAR['ToutdoorRef'].reshape(-1,1))
+        
+        p = 8 #10
+        d = 0
+        q = 2 #0
+        model = ARIMA(endog=normalizedPbld,exog=normalizedOutdoor,order=[p,d,q]) 
+        results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile (normalizedPbld,results_AR.fittedvalues,"ts_ARIMAX_SUAVIZADO_NORMALIZADO_"+str(p)+str(d)+str(q),"ARIMAX model SUAVIZADO NORMALIZADO")
+
+
+###################################################################
+## BTL finalmente realizamos el estudio quitando outliers
+#        
+#        dataAR['Pbld'] = tcs.removeOutliers (dataAR['Pbld'],2)
+#        dataAR['Pbld'].dropna(inplace=True)        
+        ## BTL Realizamos el estudio sin normalizar los valores
+#        p = 8 #10
+#        d = 0
+#        q = 2 #0
+#        model = ARIMA(endog=dataAR['Pbld'],exog=dataAR['ToutdoorRef'] ,order=[p,d,q]) 
+#        results_AR = model.fit(disp=-1)  
+#        doPlotDoubleToFile (dataAR['Pbld'],results_AR.fittedvalues,"ts_ARIMAX_SUAVIZADO_SINOUTL_"+str(p)+str(d)+str(q),"ARIMAX model")
+#
+## BTL Realizamos el estudio habiendo normalizadoo los valores
+#                
+#        scaler = scaler.fit(dataAR['Pbld'].reshape(-1,1))
+#        normalizedPbld = scaler.transform(dataAR['Pbld'].reshape(-1,1))
+#        
+#        scaler = scaler.fit(dataAR['ToutdoorRef'].reshape(-1,1))
+#        normalizedOutdoor = scaler.transform(dataAR['ToutdoorRef'].reshape(-1,1))
+#        
+#        p = 8 #10
+#        d = 0
+#        q = 2 #0
+#        model = ARIMA(endog=normalizedPbld,exog=normalizedOutdoor,order=[p,d,q]) 
+#        results_AR = model.fit(disp=-1)  
+#        doPlotDoubleToFile (normalizedPbld,results_AR.fittedvalues,"ts_ARIMAX_SUAVIZADO_SINOUTL_Normaliz_"+str(p)+str(d)+str(q),"ARIMAX model")
 
 
     
@@ -430,6 +615,6 @@ if __name__ == "__main__":
 # BTL: Incorporando una variable exogena, utilizo los mismos valores
 # pdq que he obtenido anteriormente
     doTimeSeriesARIMAXForecasting()
-    
+    doTimeSeriesARIMAXForecastingWithResiduals()
     logger.debug("Process ended...")
     

@@ -47,12 +47,36 @@ class TCSeries (object):
 
 
     def checkStationarity(self,timeseries):
+        res = False, 0
         dftest = adfuller(timeseries, autolag='AIC')
         dfoutput = pd.Series(dftest[0:4], index=['Test Statistic','p-value','#Lags Used','Number of Observations Used'])
         for key,value in dftest[4].items():
             dfoutput['Critical Value (%s)'%key] = value
         self.logger.info (dfoutput)
+        if (dfoutput[0] <= dfoutput[4]):
+            res = True, 1
+        elif (dfoutput[0] <= dfoutput[5]):
+            res = True , 5
+        elif (dfoutput[0] <= dfoutput[5]):
+            res = True , 10    
+        
+        return res
 
+
+    def removeOutliers(self,data, m = 2.):
+        d = np.abs(data - np.median(data))
+        mdev = np.median(d)
+        s = d/(mdev if mdev else 1.)
+        return data[s<m]
+    
+    def smoothSerie(self,ts,box_pts):
+
+        box = np.ones(box_pts)/box_pts
+        y_smooth = np.convolve(ts, box, mode='same')
+        return y_smooth    
+        
+
+    
     def doForecasting  (self, data):
         self.logger.info ("Comenzamos la prediccion")
       
