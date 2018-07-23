@@ -21,10 +21,19 @@ import TCPredictor
 import TCSeries
 
 from matplotlib import pyplot as plt2
+from statsmodels.graphics.tsaplots import plot_acf,plot_pacf
+
 from scipy.spatial.distance import pdist, squareform
 from statsmodels.tsa.arima_model import ARIMA
 from sklearn.preprocessing import MinMaxScaler
 from statsmodels.tsa.seasonal import seasonal_decompose
+import statsmodels.api as sm
+from numpy.polynomial import polynomial as P
+
+## BTL para el tratamiento de errores
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_absolute_error
+
 
 ## Esto no debería estar aqui.... pero por simplificar..
 ## BTL Variables de entrada
@@ -43,6 +52,13 @@ coSeriesNames =['Control','Pbld','Toutdoor','Tindoor']
 distances   = None ## Matrix de distancias por dia
 clusteres   = None ## Clusters encontrados 
 distribut   = None ## Distribcion de cada zona en clusteres
+
+
+
+
+def mean_absolute_percentage_error(y_true, y_pred): 
+    y_true, y_pred = numpy.array(y_true), numpy.array(y_pred)
+    return numpy.mean(numpy.abs((y_true - y_pred) / y_true)) * 100
 
 
 """
@@ -66,14 +82,14 @@ def loadFileData (filepath,rooms):
         return data
     
 
-def loadFileDataWithTime (filepath):
+def loadFileDataWithTime (filepath,filename):
                 
         logger.info ("Loading data from file....")         
 
 #        filename = 'ed700.csv'
 #        filename = 'FHP-20141008.csv'                
         #filename = 'datosvivienda_tfm.csv'
-        filename = 'datosvivienda_testwc.csv'        
+        #filename = 'datosvivienda_testwc.csv'        
         
         dateparse = lambda dates: pd.datetime.strptime(dates, '%d/%m/%Y %H:%M:%S')
         fulldata = pd.read_csv(filepath+filename, sep=',', decimal = '.', index_col='Control',date_parser=dateparse ,usecols=coSeriesNames)
@@ -257,12 +273,37 @@ def doRegressionForecasting ():
 def doSelectBestARIMA  (tcs,data):
         p_values = [0, 1, 2, 4, 6, 8, 10]
         
-        d_values = range(0,1)
+        d_values = range(0,2)
         q_values = range(0,3)
         
         best_sol, best_sol_aic =tcs.evaluate_models(data, p_values, d_values, q_values)
         
         return best_sol, best_sol_aic
+
+
+def calculateTrendModel (decomposition):
+    logger.debug("Comienza calculo de tendencia")
+    tendencia = decomposition.trend.dropna()
+    X = numpy.array(range (0,len(tendencia.index)))
+    Xoutbound =numpy.append(X,[162,163,164,165,166,167,168])
+    coeff, stats = P.polyfit(X,tendencia.values,9,full=True)
+    fitpoly = P.Polynomial(coeff)
+    doPlotDoubleToFile (tendencia.values,fitpoly(X),"ts_OLS_InBound_POLI","POLINOMIAL Inbound Prediction")
+    doPlotDoubleToFile (tendencia.values,fitpoly(Xoutbound),"ts_OLS_Outbound_POLI","POLINOMIAL Outbound Prediction")
+    
+    X = sm.add_constant(X)
+    Xoutbound = sm.add_constant(Xoutbound)
+    #X=X.reshape(-1,1)
+    #tendencia=tendencia.values.reshape(-1,1)
+    olsmodel = sm.OLS(numpy.array(tendencia.values),X)
+    fitols = olsmodel.fit()
+    
+    doPlotDoubleToFile (tendencia.values,fitols.predict(X),"ts_OLS_InBound","OLS Inbound Prediction")
+    doPlotDoubleToFile (tendencia.values,fitols.predict(Xoutbound),"ts_OLS_OutBound","OLS Outbound Prediction")
+    
+    logger.debug("Fin calculo de tendencia")
+
+    return fitols.predict(Xoutbound),fitpoly(Xoutbound)
 
 def doTimeSeriesARIMAXForecastingWithResiduals ():
         
@@ -274,9 +315,15 @@ def doTimeSeriesARIMAXForecastingWithResiduals ():
 
 # BTL: Cargamos los datos en el dataframe y realizamos un resample en periodos
 # de cuatro horas tomando la media        
-        fulldata = loadFileDataWithTime(filepath)
-        aggData = fulldata.resample('4H').mean()
 
+        fulldata = loadFileDataWithTime(filepath,'datosvivienda_testwc.csv')
+        predictdata = loadFileDataWithTime(filepath,'datosvivienda_testwc_predict_largo.csv')
+        
+        
+        aggData = fulldata.resample('4H').mean()
+        aggPredictData = predictdata.resample('4H').mean()
+        tt = aggPredictData["Toutdoor"][aggPredictData["Toutdoor"]>100]=aggPredictData["Toutdoor"]/100
+        
 # BTL: Inicializamos el objeto TCSeries esta funcion ademas calcula
 # el logaritmo de los valores, es una forma de penalizar los valores
 # mas altos y homogeneizar la serie. Posteriormente verificamos si 
@@ -284,11 +331,14 @@ def doTimeSeriesARIMAXForecastingWithResiduals ():
         #data_log = tcs.initialize(aggData)
         
         outAddFuller = tcs.checkStationarity(aggData['Pbld'])
-        logger.debug("El test de fuller indica que es estacionario: " , (outAddFuller[0]))
+        logger.debug("El test de fuller indica que es estacionario: " + str (outAddFuller[0]))
         outAddFuller = tcs.checkStationarity(numpy.log(aggData['Pbld']))
-        logger.debug("El test de fuller indica que es estacionario: " , (outAddFuller[0])) 
+        logger.debug("El test de fuller indica que es estacionario: " + str (outAddFuller[0])) 
         
         decomposition = seasonal_decompose(numpy.log(aggData['Pbld']))
+        
+        fitols, fitpoly = calculateTrendModel(decomposition)
+        
         residual = decomposition.resid
         residual.dropna(inplace=True)
         
@@ -299,6 +349,17 @@ def doTimeSeriesARIMAXForecastingWithResiduals ():
         logger.debug("El test de fuller indica que es estacionario: " +str (outAddFuller[0]))
         
         
+        plot_acf(residual,lags=50)
+        plt2.savefig('../Images/'+"ts_ac_res")
+        plt2.close()
+
+        plot_pacf(residual, lags=50)
+        plt2.savefig('../Images/'+"ts_pac_res")
+        plt2.close()
+
+
+        
+        
         scaler = MinMaxScaler(feature_range=(0, 1))
 
 ## BTL de aqui en adelante se usan la estructuras dataAR y nos quedamos con el residuo      
@@ -306,7 +367,8 @@ def doTimeSeriesARIMAXForecastingWithResiduals ():
         dataAR['ToutdoorRef'] = PackAggData['Toutdoor']
         dataAR['Pbld'] = residual
         dataAR['ToutdoorRef'][abs(dataAR['ToutdoorRef']>100)]=0 
-        
+        dataARValid = dataAR['Pbld'][dataAR.index>='2017-03-05']
+        dataARValid= dataARValid[dataARValid.index<='2017-03-06']
         
 ## BTL Realizamos el estudio sin normalizar los valores
         p = 8 #10
@@ -315,6 +377,17 @@ def doTimeSeriesARIMAXForecastingWithResiduals ():
         model = ARIMA(endog=dataAR['Pbld'],exog=dataAR['ToutdoorRef'] ,order=[p,d,q]) 
         results_AR = model.fit(disp=-1)  
         doPlotDoubleToFile (dataAR['Pbld'],results_AR.fittedvalues,"ts_ARIMAX_RESIDUAL_"+str(p)+str(d)+str(q),"ARIMAX model RESIDUAL")
+        
+        mse = mean_squared_error(dataAR['Pbld'],results_AR.fittedvalues)
+        mae = mean_absolute_error(dataAR['Pbld'],results_AR.fittedvalues)
+        mape = mean_absolute_percentage_error(dataAR['Pbld'],results_AR.fittedvalues)    
+        
+        pred = results_AR.predict(start="2017-03-01", end="2017-03-05",exog=tt, dynamic=False)
+        doPlotDoubleToFile ( pred , dataAR['Pbld'][dataAR.index<='2017-03-05'] ,"Predict_ts_ARIMAX_RESIDUAL_InBound_"+str(p)+str(d)+str(q),"Predict ARIMAX model log(Pbld)")
+        
+        pred = results_AR.predict(start="2017-03-05", end="2017-03-06",exog=tt, dynamic=True)
+        doPlotDoubleToFile ( pred ,dataARValid,"Predict_ts_ARIMAX_RESIDUAL_OutBound_"+str(p)+str(d)+str(q),"Predict ARIMAX model log(Pbld)")
+        
 
 ## BTL Realizamos el estudio habiendo normalizadoo los valores
                 
@@ -331,10 +404,18 @@ def doTimeSeriesARIMAXForecastingWithResiduals ():
         results_AR = model.fit(disp=-1)  
         doPlotDoubleToFile (normalizedPbld,results_AR.fittedvalues,"ts_ARIMAX_RESIDUAL_NORMALIZADO_"+str(p)+str(d)+str(q),"ARIMAX model RESIDUAL NORMALIZADO")
         
+        mse = mean_squared_error(normalizedPbld,results_AR.fittedvalues)
+        mae = mean_absolute_error(normalizedPbld,results_AR.fittedvalues)
+        mape = mean_absolute_percentage_error(normalizedPbld,results_AR.fittedvalues)    
+        
+        
 ###################################################################
 ## BTL ahora realizamos la convolucion y el suavizado
         
         dataAR['Pbld'] = tcs.smoothSerie (dataAR['Pbld'],3)
+        dataARValid = dataAR['Pbld'][dataAR.index>='2017-03-05']
+        dataARValid= dataARValid[dataARValid.index<='2017-03-06']
+        
         
         ## BTL Realizamos el estudio sin normalizar los valores
         p = 8 #10
@@ -343,6 +424,23 @@ def doTimeSeriesARIMAXForecastingWithResiduals ():
         model = ARIMA(endog=dataAR['Pbld'],exog=dataAR['ToutdoorRef'] ,order=[p,d,q]) 
         results_AR = model.fit(disp=-1)  
         doPlotDoubleToFile (dataAR['Pbld'],results_AR.fittedvalues,"ts_ARIMAX_RESIDUAL_SUAVIZADO_"+str(p)+str(d)+str(q),"ARIMAX model RESIDUAL SUAVIZADO")
+
+        mse = mean_squared_error(dataAR['Pbld'],results_AR.fittedvalues)
+        mae = mean_absolute_error(dataAR['Pbld'],results_AR.fittedvalues)
+        mape = mean_absolute_percentage_error(dataAR['Pbld'],results_AR.fittedvalues)    
+        
+        pred = results_AR.predict(start="2017-03-01", end="2017-03-05",exog=tt, dynamic=False)
+        doPlotDoubleToFile ( pred , dataAR['Pbld'] ,"Predict_ts_ARIMAX_RESIDUAL_SUAVIZADO_InBound_"+str(p)+str(d)+str(q),"Predict ARIMAX model Pbld - Residuals")
+                
+        pred = results_AR.predict(start="2017-03-05", end="2017-03-06",exog=tt, dynamic=True)
+        doPlotDoubleToFile ( pred ,dataARValid,"Predict_ts_ARIMAX_RESIDUAL_SUAVIZADO_OutBound_"+str(p)+str(d)+str(q),"Predict ARIMAX model Pbld - Residuals")
+       
+        #fitols fitpoly
+        dataARValid = PackAggData['Pbld'][PackAggData.index>='2017-03-05']
+        dataARValid= dataARValid[dataARValid.index<='2017-03-06']
+        
+        doPlotDoubleToFile ( numpy.exp(fitpoly[-7:,1]+pred),dataARValid,"Predict_ts_ARIMAX_RESIDUAL_FULL_OutBound_POLY_"+str(p)+str(d)+str(q),"Full predict Predict ARIMAX model Pbld - Residuals")
+        doPlotDoubleToFile ( numpy.exp(fitols[-7:]+pred),dataARValid,"Predict_ts_ARIMAX_RESIDUAL_FULL_OutBound_OLS_"+str(p)+str(d)+str(q),"Full predict Predict ARIMAX model Pbld - Residuals")
 
 ## BTL Realizamos el estudio habiendo normalizadoo los valores
                 
@@ -358,7 +456,12 @@ def doTimeSeriesARIMAXForecastingWithResiduals ():
         model = ARIMA(endog=normalizedPbld,exog=normalizedOutdoor,order=[p,d,q]) 
         results_AR = model.fit(disp=-1)  
         doPlotDoubleToFile (normalizedPbld,results_AR.fittedvalues,"ts_ARIMAX_RESIDUAL_SUAVIZADO_NORMALIZADO_"+str(p)+str(d)+str(q),"ARIMAX model RESIDUAL NORMALIZADO SUAVIZADO")
-
+        
+        mse = mean_squared_error(normalizedPbld,results_AR.fittedvalues)
+        mae = mean_absolute_error(normalizedPbld,results_AR.fittedvalues)
+        mape = mean_absolute_percentage_error(normalizedPbld,results_AR.fittedvalues)    
+        
+        return 0
 
 ###################################################################
 ## BTL finalmente realizamos el estudio quitando outliers
@@ -399,10 +502,17 @@ def doTimeSeriesARIMAXForecasting ():
         tcs = TCSeries.TCSeries("mytest",coSeriesNames)
 
 # BTL: Cargamos los datos en el dataframe y realizamos un resample en periodos
-# de cuatro horas tomando la media        
-        fulldata = loadFileDataWithTime(filepath)
+# de cuatro horas tomando la media                
+        fulldata = loadFileDataWithTime(filepath,'datosvivienda_testwc.csv')
+        predictdata = loadFileDataWithTime(filepath,'datosvivienda_testwc_predict_largo.csv')
+        predictdataCorto = loadFileDataWithTime(filepath,'datosvivienda_testwc_predict.csv')
+        
+        
         aggData = fulldata.resample('4H').mean()
-
+        aggPredictData = predictdata.resample('4H').mean()
+        aggPredictDataCorto = predictdataCorto.resample('4H').mean()
+        tt = aggPredictData["Toutdoor"][aggPredictData["Toutdoor"]>100]=aggPredictData["Toutdoor"]/100
+        
 # BTL: Inicializamos el objeto TCSeries esta funcion ademas calcula
 # el logaritmo de los valores, es una forma de penalizar los valores
 # mas altos y homogeneizar la serie. Posteriormente verificamos si 
@@ -430,7 +540,21 @@ def doTimeSeriesARIMAXForecasting ():
         model = ARIMA(endog=dataAR['Pbld'],exog=dataAR['ToutdoorRef'] ,order=[p,d,q]) 
         results_AR = model.fit(disp=-1)  
         doPlotDoubleToFile (dataAR['Pbld'],results_AR.fittedvalues,"ts_ARIMAX_"+str(p)+str(d)+str(q),"ARIMAX model")
-
+        
+        mse = mean_squared_error(dataAR['Pbld'],results_AR.fittedvalues)
+        mae = mean_absolute_error(dataAR['Pbld'],results_AR.fittedvalues)
+        mape = mean_absolute_percentage_error(dataAR['Pbld'],results_AR.fittedvalues)    
+        
+        pred = results_AR.predict(start="2017-03-01", end="2017-03-08",exog=tt, dynamic=False)
+        doPlotDoubleToFile ( pred , dataAR['Pbld'][dataAR.index<='2017-03-08'],"Predict_ts_ARIMAX_Pbld_InBound_"+str(p)+str(d)+str(q),"Predict ARIMAX model log(Pbld)")
+        
+        
+        pred = results_AR.predict(start="2017-03-08", end="2017-03-09",exog=tt, dynamic=True)
+        doPlotDoubleToFile ( pred ,numpy.log(aggPredictDataCorto["Pbld"]),"Predict_ts_ARIMAX_Pbld_OutBound_"+str(p)+str(d)+str(q),"Predict ARIMAX model log(Pbld)")
+        doPlotDoubleToFile ( numpy.exp(pred) ,(aggPredictDataCorto["Pbld"]),"Predict_ts_ARIMAX_Pbld_OutBound_REAL_"+str(p)+str(d)+str(q),"Predict ARIMAX model log(Pbld)")
+        # Azul prediccicion
+        
+        
 ## BTL Realizamos el estudio habiendo normalizadoo los valores
                 
         scaler = scaler.fit(dataAR['Pbld'].reshape(-1,1))
@@ -446,10 +570,18 @@ def doTimeSeriesARIMAXForecasting ():
         results_AR = model.fit(disp=-1)  
         doPlotDoubleToFile (normalizedPbld,results_AR.fittedvalues,"ts_ARIMAX_NORMALIZADO_"+str(p)+str(d)+str(q),"ARIMAX model NORMALIZADO")
         
+        mse = mean_squared_error(normalizedPbld,results_AR.fittedvalues)
+        mae = mean_absolute_error(normalizedPbld,results_AR.fittedvalues)
+        mape = mean_absolute_percentage_error(normalizedPbld,results_AR.fittedvalues)    
+        
+        
 ###################################################################
 ## BTL ahora realizamos la convolucion y el suavizado
         
         dataAR['Pbld'] = tcs.smoothSerie (dataAR['Pbld'],3)
+        outAddFuller = tcs.checkStationarity(dataAR['Pbld'])
+        logger.debug("El test de fuller indica que es estacionario: " + str(outAddFuller[0]))
+        
         
         ## BTL Realizamos el estudio sin normalizar los valores
         p = 8 #10
@@ -459,6 +591,21 @@ def doTimeSeriesARIMAXForecasting ():
         results_AR = model.fit(disp=-1)  
         doPlotDoubleToFile (dataAR['Pbld'],results_AR.fittedvalues,"ts_ARIMAX_SUAVIZADO_"+str(p)+str(d)+str(q),"ARIMAX model SUAVIZADO")
 
+        mse = mean_squared_error(dataAR['Pbld'],results_AR.fittedvalues)
+        mae = mean_absolute_error(dataAR['Pbld'],results_AR.fittedvalues)
+        mape = mean_absolute_percentage_error(dataAR['Pbld'],results_AR.fittedvalues)    
+        
+        pred = results_AR.predict(start="2017-03-01", end="2017-03-08",exog=tt, dynamic=False)
+        doPlotDoubleToFile ( pred , dataAR['Pbld'][dataAR.index<='2017-03-08'] ,"Predict_ts_ARIMAX_Pbld_SAUVIZADO_InBound_"+str(p)+str(d)+str(q),"Predict ARIMAX SUAVIZADO model log(Pbld)")
+        
+        
+        pred = results_AR.predict(start="2017-03-08", end="2017-03-09",exog=tt, dynamic=True)
+        aggPredictDataCorto["Pbld"] = tcs.smoothSerie (numpy.log(aggPredictDataCorto["Pbld"]),3)
+        doPlotDoubleToFile (pred, aggPredictDataCorto["Pbld"] ,"Predict_ts_ARIMAX_Pbld_SUAVIZADO_OutBound_"+str(p)+str(d)+str(q),"Predict ARIMAX SUAVIZADO model log(Pbld)")
+        doPlotDoubleToFile (numpy.exp(pred), numpy.exp(aggPredictDataCorto["Pbld"]) ,"Predict_ts_ARIMAX_Pbld_SUAVIZADO_OutBound_REAL_"+str(p)+str(d)+str(q),"Predict ARIMAX SUAVIZADO model log(Pbld)")
+        
+        
+        
 ## BTL Realizamos el estudio habiendo normalizadoo los valores
                 
         scaler = scaler.fit(dataAR['Pbld'].reshape(-1,1))
@@ -473,7 +620,10 @@ def doTimeSeriesARIMAXForecasting ():
         model = ARIMA(endog=normalizedPbld,exog=normalizedOutdoor,order=[p,d,q]) 
         results_AR = model.fit(disp=-1)  
         doPlotDoubleToFile (normalizedPbld,results_AR.fittedvalues,"ts_ARIMAX_SUAVIZADO_NORMALIZADO_"+str(p)+str(d)+str(q),"ARIMAX model SUAVIZADO NORMALIZADO")
-
+        mse = mean_squared_error(normalizedPbld,results_AR.fittedvalues)
+        mae = mean_absolute_error(normalizedPbld,results_AR.fittedvalues)
+        mape = mean_absolute_percentage_error(normalizedPbld,results_AR.fittedvalues)    
+        
 
 ###################################################################
 ## BTL finalmente realizamos el estudio quitando outliers
@@ -515,7 +665,9 @@ def doTimeSeriesForecasting ():
 
 # BTL: Cargamos los datos en el dataframe y realizamos un resample en periodos
 # de cuatro horas tomando la media        
-        fulldata = loadFileDataWithTime(filepath)
+    
+        fulldata = loadFileDataWithTime(filepath,'datosvivienda_testwc.csv'          )
+        predictdata = loadFileDataWithTime(filepath,'datosvivienda_testwc_predict.csv'          )
         aggData = fulldata.resample('4H').mean()
 
 # BTL: Inicializamos el objeto TCSeries esta funcion ademas calcula
@@ -561,21 +713,36 @@ def doTimeSeriesForecasting ():
 # es decir prueba-error. Este procedimiento puede tardar mucho
 # OJOOOO !!! Esta funcion tarda mucho....
 
-        best_sol_mse,best_sol_aic =doSelectBestARIMA  (tcs,residual)
 # BTL realizamos la grafica con la mejor opcion segun el metodo AIC
-        p = best_sol_aic[1][0]
-        d = best_sol_aic[1][1]
-        q = best_sol_aic[1][2]
+        best_sol_mse,best_sol_aic =doSelectBestARIMA  (tcs,residual)
+
+        #p = best_sol_aic[1][0]
+        #d = best_sol_aic[1][1]
+        #q = best_sol_aic[1][2]
+        
+        p = 8
+        d = 0
+        q = 2
+       
         model = ARIMA(residual, order=(p,d,q))  
         results_AR = model.fit(disp=-1)
         doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA_"+str(p)+str(d)+str(q),"ARIMA model")
+        mse = mean_squared_error(residual.values,results_AR.fittedvalues)
+        mae = mean_absolute_error(residual.values,results_AR.fittedvalues)
+        mape = mean_absolute_percentage_error(residual.values,results_AR.fittedvalues)
+        #mse_values=mean_squared_error(residual.values,results_AR.fittedvalues,multioutput='raw_values')
+        #doPlotSingleToFile (mse_values, "MSE_ts_ARIMA_"+str(p)+str(d)+str(q),"MSE ARIMA: " + str (mse))
+        
+        model.predict()
 
+        
 # BTL realizamos la grafica con la mejor opcion segun el metodo MSE                
         p = best_sol_mse[1][0]
         d = best_sol_mse[1][1]
         q = best_sol_mse[1][2]
         model = ARIMA(residual, order=(p,d,q))  
         results_AR = model.fit(disp=-1)  
+        doPlotDoubleToFile 
         doPlotDoubleToFile (residual,results_AR.fittedvalues,"ts_ARIMA_"+str(p)+str(d)+str(q),"ARIMA model")
  
 if __name__ == "__main__":
@@ -611,7 +778,7 @@ if __name__ == "__main__":
 #    doClassForecasting();
 
 # BTL: Modelado por series temporales tradicionales ARIMA    
-#    doTimeSeriesForecasting()
+    #doTimeSeriesForecasting()
 # BTL: Incorporando una variable exogena, utilizo los mismos valores
 # pdq que he obtenido anteriormente
     doTimeSeriesARIMAXForecasting()

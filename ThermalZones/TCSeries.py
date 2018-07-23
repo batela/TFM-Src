@@ -124,10 +124,11 @@ class TCSeries (object):
                     order = (p,d,q)
                     try:
                         mse, aic =  self.evaluate_arima_model(dataset, order)
+                        
                         if mse < best_score:
                             best_cfg = mse, order
                             best_score = mse
-                        self.logger.info ("'ARIMA%s MSE=" + str((order,mse)))
+                        #self.logger.info ("'ARIMA%s MSE=" + str((order,mse)))
                         if aic < best_score_aic:
                             best_cfg_aic = aic, order
                             best_score_aic = aic
